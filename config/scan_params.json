@@ -1,0 +1,32 @@
+{
+  "stage": {
+    "ip": "192.168.0.30",
+    "port": 8088,
+    "device_id": 0,
+    "velocity_mm_s": 80,
+    "accel_mm_s2": 200,
+    "decel_mm_s2": 200,
+    "timeout_s": 5.0,
+    "tolerance_mm": 0.01,
+    "poll_interval_s": 0.02
+  },
+  "scan": {
+    "step_mm": 0.05,
+    "range_mm": 60.0,
+    "axis": "X"
+  },
+  "vantage": {
+    "num_angles": 1,
+    "num_channels": 128,
+    "samples_per_acq": 4096,
+    "start_depth_wvl": 5,
+    "end_depth_wvl": 128,
+    "speed_of_sound_mps": 1540,
+    "num_frames_realtime": 10,
+    "num_frames_batch": 1200
+  },
+  "save": {
+    "base_dir": "E:\\dbz\\chip_scan",
+    "filename_prefix": "RFbatch_5angle_PI_single_step0.05mm"
+  }
+}

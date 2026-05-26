@@ -1,0 +1,36 @@
+# ── C/C++ build ──────────────────────────────────────────────
+core/build/
+*.o
+*.obj
+*.a
+*.lib
+*.exp
+*.pdb
+
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# ── MATLAB ───────────────────────────────────────────────────
+*.asv
+*.mex*
+matlab/mex/*.dll
+matlab/mex/*.so
+matlab/MatFiles/
+
+# ── Data files (use git-lfs) ─────────────────────────────────
+*.mat
+*.bin
+*.h5
+*.txt
+
+# ── Vendor binaries (git-lfs) ────────────────────────────────
+vendor/**/*.dll
+vendor/**/*.so
+
+# ── OS ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

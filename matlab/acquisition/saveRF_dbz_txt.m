@@ -1,0 +1,50 @@
+% function saveRF_dbz(varargin)
+function saveRF_dbz_txt(varargin)
+tic
+% Copyright 2001-2017 Verasonics, Inc.  All world-wide rights and remedies under all intellectual property laws and industrial property laws are reserved.  Verasonics Registered U.S. Patent and Trademark Office.
+%
+% Notice:
+%   This file is provided by Verasonics to end users as a programming
+%   tool for the Verasonics Vantage Research Ultrasound System.
+%   Verasonics makes no claims as to the functionality or intended
+%   application of this program and the user assumes all responsibility
+%   for its use
+%
+% File name: saveRF.m - A tool to save RF
+%
+%linear_dis = evalin('base','linear_dis');
+if ~isempty(findobj('tag','UI')) % running VSX
+    if evalin('base','freeze')==0   % no action if not in freeze
+        msgbox('Please freeze VSX');
+        return
+    else
+        Control.Command = 'copyBuffers';
+        runAcq(Control); % NOTE:  If runAcq() has an error, it reports it then exits MATLAB.
+    end
+else % not running VSX
+    if evalin('base','exist(''RcvData'',''var'');')
+        RcvData = evalin('base','RcvData');
+    else
+        disp('RcvData does not exist!');
+        return
+    end
+end
+%% change name here
+%RFfilename = ['RF_',datestr(now,'dd-mmmm-yyyy_HH-MM-SS')];
+filepath = ['E:\dbz\chip_scan\chip_point_simu_txt_save',datestr(now,'dd-mmmm-yyyy'),'\'];
+mkdir(filepath);
+RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm',datestr(now,'dd-mmmm-yyyy'), 'rotated90deg'];
+%RFfilename = [filepath,'RFbatch_5angle_cdw_single_simupoints',datestr(now,'dd-mmmm-yyyy')];
+%multiangle
+save_RFfilename = [RFfilename,'.txt'];
+
+fid = fopen(save_RFfilename,'w');
+fwrite(fid,RcvData{2},'double');
+fclose(fid);
+
+rf_size = size(RcvData{2});
+save_RFfilename_size = [RFfilename,'_size.mat'];
+save(save_RFfilename_size,'rf_size');
+
+toc
+end
