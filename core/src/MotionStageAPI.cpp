@@ -46,17 +46,17 @@ static int loadDll(FMC4030Dll& dll) {
     dll.handle = LoadLibraryA(DLL_PATH);
     if (!dll.handle) return STAGE_ERR_API;
 
-    #define LOAD(name, type) \
-        dll.name = (type)GetProcAddress(dll.handle, "FMC4030_" #name); \
-        if (!dll.name) { FreeLibrary(dll.handle); dll.handle=nullptr; return STAGE_ERR_API; }
+    #define LOAD(field, sym, type) \
+        dll.field = (type)GetProcAddress(dll.handle, sym); \
+        if (!dll.field) { FreeLibrary(dll.handle); dll.handle=nullptr; return STAGE_ERR_API; }
 
-    LOAD(Open_Device,         Fn_Open)
-    LOAD(Close_Device,        Fn_Close)
-    LOAD(Jog_Single_Axis,     Fn_Jog)
-    LOAD(Check_Axis_Is_Stop,  Fn_IsStop)
-    LOAD(Get_Axis_Current_Pos,Fn_GetPos)
-    LOAD(Stop_Single_Axis,    Fn_Stop)
-    LOAD(Home_Single_Axis,    Fn_Home)
+    LOAD(open,    "FMC4030_Open_Device",          Fn_Open)
+    LOAD(close,   "FMC4030_Close_Device",         Fn_Close)
+    LOAD(jog,     "FMC4030_Jog_Single_Axis",      Fn_Jog)
+    LOAD(isStop,  "FMC4030_Check_Axis_Is_Stop",   Fn_IsStop)
+    LOAD(getPos,  "FMC4030_Get_Axis_Current_Pos", Fn_GetPos)
+    LOAD(stop,    "FMC4030_Stop_Single_Axis",     Fn_Stop)
+    LOAD(home,    "FMC4030_Home_Single_Axis",     Fn_Home)
     #undef LOAD
 
     return STAGE_OK;

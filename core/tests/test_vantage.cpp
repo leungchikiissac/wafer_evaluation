@@ -31,20 +31,12 @@ static void test_null_ptr() {
 }
 
 static void test_invalid_params() {
-    VantageAcqParams bad = {1, 0, 4096, 5.0f, 128.0f, 1540.0f, 10};
+    VantageAcqParams bad = {1, 0, 4096, 5.0f, 128.0f, 1540.0f, 10};  /* num_channels=0 → invalid */
     CHECK(Vantage_Initialize(&bad) == VANTAGE_ERR_INVALID_PARAM, "Initialize with 0 channels -> error");
 }
 
 static void test_initialize_and_shutdown() {
-    VantageAcqParams p = {
-        .num_angles       = 1,
-        .num_channels     = 128,
-        .samples_per_acq  = 4096,
-        .start_depth_wvl  = 5.0f,
-        .end_depth_wvl    = 128.0f,
-        .speed_of_sound   = 1540.0f,
-        .num_frames       = 10,
-    };
+    VantageAcqParams p = {1, 128, 4096, 5.0f, 128.0f, 1540.0f, 10};
     int r = Vantage_Initialize(&p);
     CHECK(r == VANTAGE_OK, "Initialize with valid params -> OK");
     CHECK(Vantage_IsInitialized() == 1, "IsInitialized after init -> 1");

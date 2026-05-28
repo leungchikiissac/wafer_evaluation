@@ -41,10 +41,17 @@ clear all
 
 %% CONNECT MOTION STAGE
 addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matlab\')
-loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
-libisloaded('FMC40300x2DDll')
-%Connect Device
-calllib('FMC40300x2DDll', 'FMC4030_Open_Device', 0, '192.168.0.30', 8088)
+addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'motion'))
+
+if ~libisloaded('FMC40300x2DDll')
+    loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
+end
+
+% Create StageController and connect — stored in base workspace for move3dstage
+stage = StageController();
+stage.connect();
+assignin('base', 'stage', stage);
+
 posPtr = libpointer('singlePtr', 0);
 
 %%
