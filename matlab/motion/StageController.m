@@ -20,6 +20,10 @@ classdef StageController < handle
     properties (Constant)
         DLL_NAME        = 'FMC40300x2DDll'
         DEVICE_INDEX    = 0
+
+        DEFAULT_IP      = '192.168.0.30'
+        DEFAULT_PORT    = 8088
+
         AXIS_X          = 0
         AXIS_Y          = 1
         AXIS_Z          = 2
@@ -30,7 +34,7 @@ classdef StageController < handle
         DEFAULT_DECEL   = 200    % mm/s²
 
         % Polling parameters
-        POLL_INTERVAL   = 0.02   % seconds between position reads
+        POLL_INTERVAL   = 0.002   % seconds between position reads
         STABLE_THRESH   = 0.001  % mm — position change below this = stopped
         MOVE_TIMEOUT    = 5.0    % seconds before timeout warning
         POS_TOLERANCE   = 0.010  % mm — acceptable positioning error (10 µm)
@@ -56,9 +60,10 @@ classdef StageController < handle
         % ── connect ──────────────────────────────────────────────────────
         function connect(obj)
         % connect  Verify communication with FMC4030 controller.
-            posPtr = libpointer('singlePtr', 0);
-            status = calllib(obj.DLL_NAME, 'FMC4030_Get_Axis_Current_Pos', ...
-                             obj.DEVICE_INDEX, obj.AXIS_X, posPtr);
+%             posPtr = libpointer('singlePtr', 0);
+            status = calllib(obj.DLL_NAME, 'FMC4030_Open_Device', ...
+                             obj.DEVICE_INDEX, obj.DEFAULT_IP, ...
+                             obj.DEFAULT_PORT);
             obj.checkStatus(status, 'connect');
             obj.isConnected = true;
             disp('StageController: connection verified.');

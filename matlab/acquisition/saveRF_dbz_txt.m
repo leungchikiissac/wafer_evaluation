@@ -31,7 +31,7 @@ else % not running VSX
 end
 %% change name here
 %RFfilename = ['RF_',datestr(now,'dd-mmmm-yyyy_HH-MM-SS')];
-filepath = ['E:\dbz\chip_scan\chip_point_simu_txt_save',datestr(now,'dd-mmmm-yyyy'),'\'];
+filepath = ['E:\issac\chip_point_simu_txt_save',datestr(now,'dd-mmmm-yyyy'),'\'];
 mkdir(filepath);
 RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm',datestr(now,'dd-mmmm-yyyy'), 'rotated90deg'];
 %RFfilename = [filepath,'RFbatch_5angle_cdw_single_simupoints',datestr(now,'dd-mmmm-yyyy')];
