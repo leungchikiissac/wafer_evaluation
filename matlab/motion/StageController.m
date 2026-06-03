@@ -132,32 +132,31 @@ classdef StageController < handle
 
         % ── waitUntilStopped ─────────────────────────────────────────────
         function waitUntilStopped(obj, axis, requestedDistMm)
-        % waitUntilStopped  Poll axis position until movement ceases.
-        %   Issues warning if timeout or position tolerance exceeded.
+        % waitUntilStopped  Poll hardware stop flag until axis confirms stopped.
             t_start  = tic;
-            prev_pos = NaN;
-            curr_pos = NaN;
             timedOut = false;
 
-            while toc(t_start) < obj.MOVE_TIMEOUT
-                pause(obj.POLL_INTERVAL);
-                curr_pos = obj.readAxisPosition(axis);
+            % Short startup delay — let controller begin moving before polling
+            pause(0.1);
 
-                if ~isnan(prev_pos) && abs(curr_pos - prev_pos) < obj.STABLE_THRESH
-                    break;   % position stable — stage has stopped
+            while toc(t_start) < obj.MOVE_TIMEOUT
+                stopped = calllib(obj.DLL_NAME, 'FMC4030_Check_Axis_Is_Stop', ...
+                                  obj.DEVICE_INDEX, axis);
+                if stopped == 1
+                    break;
                 end
-                prev_pos = curr_pos;
+                pause(obj.POLL_INTERVAL);
             end
 
             if toc(t_start) >= obj.MOVE_TIMEOUT
                 timedOut = true;
                 warning('StageController:timeout', ...
-                        'Stage movement timed out after %.1f sec on axis %d. Last position: %.3f mm', ...
-                        obj.MOVE_TIMEOUT, axis, curr_pos);
+                        'Stage movement timed out after %.1f sec on axis %d.', ...
+                        obj.MOVE_TIMEOUT, axis);
             end
 
-            % Verify final position is within tolerance
             if ~timedOut
+                curr_pos = obj.readAxisPosition(axis);
                 obj.verifyPosition(axis, requestedDistMm, curr_pos);
             end
         end

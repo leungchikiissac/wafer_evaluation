@@ -338,7 +338,7 @@ SeqControl(3).argument = 20000 - (na-1)*200;  % 20 msec
 SeqControl(4).command = 'returnToMatlab';
 
 SeqControl(5).command = 'sync';
-SeqControl(5).argument = 0.01e6; % unit:us
+SeqControl(5).argument = 5e6; % 5 seconds — allows time for stage move + polling
 % SeqControl(5).command = 'jump'; % jump back to start.
 % SeqControl(5).argument = 1292;
 
