@@ -42,7 +42,7 @@ end
 %% 5. Move Y-axis: 69 steps of 0.1 mm
 fprintf('\nMoving Y-axis: 69 steps x 0.1 mm\n');
 for i = 1:69
-    stage.moveY(0.1);
+    stage.moveY(-0.1);
     stage.printPosition();
 end
 
