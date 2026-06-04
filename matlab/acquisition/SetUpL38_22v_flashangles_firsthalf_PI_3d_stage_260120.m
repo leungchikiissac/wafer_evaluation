@@ -44,13 +44,17 @@ addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matl
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'motion'))
 setupLog('Script started — paths added');
 
-% Reload library
+% Reload library (suppress known harmless warnings)
+warning('off', 'MATLAB:loadlibrary:TypeNotFound');
+warning('off', 'MATLAB:loadlibrary:parsewarnings');
 if libisloaded('FMC40300x2DDll')
     unloadlibrary('FMC40300x2DDll')
 end
 if ~libisloaded('FMC40300x2DDll')
     loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
 end
+warning('on', 'MATLAB:loadlibrary:TypeNotFound');
+warning('on', 'MATLAB:loadlibrary:parsewarnings');
 setupLog('DLL loaded');
 
 stage = StageController();
@@ -597,7 +601,7 @@ cd(vantage_root);
 setupLog(sprintf('cwd: %s  VSX.m found: %d', pwd, isfile(fullfile(vantage_root,'VSX.m'))));
 
 % Save sequence to MatFiles in the Vantage root (VSX looks here)
-if ~isfolder('MatFiles'), mkdir('MatFiles'); end
+if ~isfolder('MatFiles'), [~,~] = mkdir('MatFiles'); end
 setupLog('Saving .mat file...');
 save('MatFiles/L38-22vfalsh_3d_cdw');
 setupLog('Calling VSX...');
