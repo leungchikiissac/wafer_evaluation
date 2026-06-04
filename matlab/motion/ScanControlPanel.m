@@ -92,35 +92,24 @@ sweepsDone = 0;
 % ── Callbacks ─────────────────────────────────────────────────────────────
 
     function onLaunchVSX()
-        setStatus('VSX launching — run SetUp script in Command Window...', ...
-                  [0.6 0.4 0]);
         lockAll();
+        setStatus('VSX running — GUI unlocks when you close VSX.', [0.6 0.4 0]);
         drawnow;
 
-        % Print the run command to the Command Window so the user can
-        % copy-paste it. VSX blocks the MATLAB thread so it cannot be
-        % called from inside a GUI callback or timer.
-        fprintf('\n--- Run this in the MATLAB Command Window to launch VSX ---\n');
-        fprintf("run('%s')\n", strrep(setup_script, '\', '/'));
-        fprintf('------------------------------------------------------------\n\n');
+        try
+            % Run SetUp script directly — blocks here until VSX window is closed
+            run(setup_script);
 
-        % Poll the base workspace until 'stage' appears (SetUp script ran)
-        t = timer('ExecutionMode', 'fixedRate', ...
-                  'Period', 1.0, ...
-                  'TimerFcn', @pollForStage);
-        start(t);
-    end
-
-    function pollForStage(t, ~)
-        if evalin('base', "exist('stage','var')")
-            stop(t);
-            delete(t);
+            % VSX closed — SetUp script has finished
             updatePosition();
-            setStatus('Stage ready. Run "Move Batch" in VSX, then Reposition.', ...
-                      [0.2 0.5 0.2]);
+            setStatus('VSX closed. Ready to reposition.', [0.2 0.5 0.2]);
             hRepos.Enable      = 'on';
-            hLaunch.Enable     = 'off';
+            hFinish.Enable     = 'on';
             hDisconnect.Enable = 'on';
+
+        catch ex
+            setStatus(['Launch failed: ' ex.message], [0.8 0 0]);
+            hLaunch.Enable = 'on';
         end
     end
 
@@ -131,26 +120,6 @@ sweepsDone = 0;
             return
         end
 
-        % Block reposition if VSX GUI is still open.
-        % VSX sets tag='UI' on its main figure; check it is a valid visible figure.
-        vsxObjs = findobj('tag', 'UI');
-        vsxRunning = false;
-        for k = 1:numel(vsxObjs)
-            obj = vsxObjs(k);
-            try
-                if ishghandle(obj) && strcmpi(get(obj,'Type'),'figure') ...
-                        && strcmpi(get(obj,'Visible'),'on')
-                    vsxRunning = true;
-                    break;
-                end
-            catch
-            end
-        end
-        if vsxRunning
-            setStatus('VSX is still running — close VSX before repositioning.', ...
-                      [0.8 0 0]);
-            return
-        end
 
         lockAll();
         setStatus('Moving stage — please wait...', [0.6 0.4 0]);
