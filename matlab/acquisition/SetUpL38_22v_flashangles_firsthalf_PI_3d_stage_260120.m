@@ -86,6 +86,10 @@ Trans.units = 'wavelengths'; % Explicit declaration avoids warning message when 
 Trans = computeTrans(Trans);  % L38-22v transducer is a 'known' transducer so we can use computeTrans.
 Trans.maxHighVoltage = 20;  % set maximum high voltage limit for pulser supply.
 
+% VSX GUI Voltage Setting
+TPC(1).hv             = 4.0;
+TPC(1).maxHighVoltage = 8.0;   % ← safety ceiling
+
 % Specify PData structure array. reconstruct area
 PData.PDelta = [Trans.spacing, 0, 0.5];
 PData.Size(1) = ceil((P.endDepth-P.startDepth)/PData.PDelta(3)); % startDepth, endDepth and pdelta set PData.Size.
