@@ -4,6 +4,12 @@
 % performing moves, and cleaning up.
 %
 % This script is for manual testing outside of the Verasonics VSX engine.
+clear all
+
+% make sure library is unload for safety reason
+if libisloaded('FMC40300x2DDll')
+    unloadlibrary('FMC40300x2DDll')
+end
 
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'motion'))
 
@@ -26,19 +32,20 @@ stage.connect();
 %% 3. Print initial position
 stage.printPosition();
 
-%% 4. Move X-axis: 10 steps of 0.05 mm
-fprintf('\nMoving X-axis: 10 steps x 0.05 mm\n');
-for i = 1:10
-    stage.moveX(0.05);
+%% 4. Move X-axis: 600 steps of 0.05 mm
+fprintf('\nMoving X-axis: 600 steps x 0.05 mm\n');
+for i = 1:600
+    stage.moveX(-0.1);
     stage.printPosition();
 end
 
-%% 5. Move Y-axis: 5 steps of 0.1 mm
-fprintf('\nMoving Y-axis: 5 steps x 0.1 mm\n');
-for i = 1:5
+%% 5. Move Y-axis: 69 steps of 0.1 mm
+fprintf('\nMoving Y-axis: 69 steps x 0.1 mm\n');
+for i = 1:69
     stage.moveY(0.1);
     stage.printPosition();
 end
+
 
 %% 6. Cleanup
 stage.disconnect();
