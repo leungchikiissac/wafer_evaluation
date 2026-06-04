@@ -22,6 +22,7 @@ assert(isfile(setup_script), 'SetUp script not found: %s', setup_script);
 % ── Build figure ──────────────────────────────────────────────────────────
 fig = uifigure('Name', 'Scan Control Panel', ...
                'Position', [100 100 340 380], ...
+               'Tag', 'ScanControlPanel', ...
                'Resize', 'off');
 
 % Title
@@ -130,8 +131,22 @@ sweepsDone = 0;
             return
         end
 
-        % Block reposition if VSX GUI is still open
-        if ~isempty(findobj('tag', 'UI'))
+        % Block reposition if VSX GUI is still open.
+        % VSX sets tag='UI' on its main figure; check it is a valid visible figure.
+        vsxObjs = findobj('tag', 'UI');
+        vsxRunning = false;
+        for k = 1:numel(vsxObjs)
+            obj = vsxObjs(k);
+            try
+                if ishghandle(obj) && strcmpi(get(obj,'Type'),'figure') ...
+                        && strcmpi(get(obj,'Visible'),'on')
+                    vsxRunning = true;
+                    break;
+                end
+            catch
+            end
+        end
+        if vsxRunning
             setStatus('VSX is still running — close VSX before repositioning.', ...
                       [0.8 0 0]);
             return
