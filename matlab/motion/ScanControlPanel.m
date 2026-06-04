@@ -111,8 +111,8 @@ sweepsDone = 0;
 
         try
             addLog('Running SetUp script...');
-            % Run SetUp script directly — blocks here until VSX window is closed
-            run(setup_script);
+            % evalin base executes the script in base workspace — fully blocking
+            evalin('base', sprintf("run('%s')", strrep(setup_script,'\','/')));
             addLog('SetUp script returned.');
 
             % VSX closed — SetUp script has finished
