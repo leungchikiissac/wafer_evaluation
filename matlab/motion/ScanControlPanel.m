@@ -127,20 +127,9 @@ sweepsDone = 0;
 
         try
             stage = evalin('base', 'stage');
-
-            % Return X: 600 steps x -0.1 mm  (matches move3dstage_use.m)
-            for i = 1:600
-                setStatus(sprintf('Returning X: step %d / 600', i), [0.6 0.4 0]);
-                drawnow;
-                stage.moveX(-0.1);
-            end
-
-            % Advance Y: 69 steps x 0.1 mm  (matches move3dstage_use.m)
-            for i = 1:69
-                setStatus(sprintf('Advancing Y: step %d / 69', i), [0.6 0.4 0]);
-                drawnow;
-                stage.moveY(0.1);
-            end
+            setStatus('Returning X (600 steps)...', [0.6 0.4 0]);
+            drawnow;
+            repositionProbe(stage);
 
             sweepsDone = sweepsDone + 1;
             assignin('base', 'stage', stage);

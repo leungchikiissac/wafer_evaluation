@@ -32,19 +32,8 @@ stage.connect();
 %% 3. Print initial position
 stage.printPosition();
 
-%% 4. Move X-axis: 600 steps of 0.05 mm
-fprintf('\nMoving X-axis: 600 steps x 0.05 mm\n');
-for i = 1:600
-    stage.moveX(-0.1);
-    stage.printPosition();
-end
-
-%% 5. Move Y-axis: 69 steps of 0.1 mm
-fprintf('\nMoving Y-axis: 69 steps x 0.1 mm\n');
-for i = 1:69
-    stage.moveY(-0.1);
-    stage.printPosition();
-end
+%% 4 & 5. Reposition probe to next sweep lane
+repositionProbe(stage);
 
 
 %% 6. Cleanup
