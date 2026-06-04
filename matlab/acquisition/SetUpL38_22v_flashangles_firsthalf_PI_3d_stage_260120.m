@@ -44,17 +44,15 @@ addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matl
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'motion'))
 setupLog('Script started — paths added');
 
-% Reload library (suppress known harmless warnings)
-warning('off', 'MATLAB:loadlibrary:TypeNotFound');
-warning('off', 'MATLAB:loadlibrary:parsewarnings');
+% Reload library — suppress all warnings during load (name + preprocessor warnings)
 if libisloaded('FMC40300x2DDll')
     unloadlibrary('FMC40300x2DDll')
 end
 if ~libisloaded('FMC40300x2DDll')
+    warnState = warning('off', 'all');
     loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
+    warning(warnState);   % restore previous warning state
 end
-warning('on', 'MATLAB:loadlibrary:TypeNotFound');
-warning('on', 'MATLAB:loadlibrary:parsewarnings');
 setupLog('DLL loaded');
 
 stage = StageController();
