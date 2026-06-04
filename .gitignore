@@ -19,7 +19,7 @@ __pycache__/
 *.mex*
 matlab/mex/*.dll
 matlab/mex/*.so
-matlab/MatFiles/
+matlab/acquisition/MatFiles/*.mat
 
 # ── Data files (use git-lfs) ─────────────────────────────────
 *.mat

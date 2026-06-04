@@ -47,10 +47,12 @@ if ~libisloaded('FMC40300x2DDll')
     loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
 end
 
-% Create StageController and connect — stored in base workspace for move3dstage
-stage = StageController();
-stage.connect();
-assignin('base', 'stage', stage);
+% Create StageController only if not already connected (e.g. from ScanControlPanel)
+if ~evalin('base', 'exist(''stage'',''var'')')
+    stage = StageController();
+    stage.connect();
+    assignin('base', 'stage', stage);
+end
 
 posPtr = libpointer('singlePtr', 0);
 
