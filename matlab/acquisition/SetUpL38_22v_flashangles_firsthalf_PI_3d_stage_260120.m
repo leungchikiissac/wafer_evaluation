@@ -37,20 +37,12 @@
 % no cdw. just first aperture 0 angle planewave.
 % Copyright © 2013-2023 Verasonics, Inc.
 
-% Capture guiLog callback before clear all wipes it
-if exist('guiLog', 'var')
-    log = guiLog;
-else
-    log = @(msg) fprintf('[SetUp] %s\n', msg);
-end
-
 clear all
-log('Script started');
 
 %% CONNECT MOTION STAGE
 addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matlab\')
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'motion'))
-log('Paths added');
+setupLog('Script started — paths added');
 
 % Reload library
 if libisloaded('FMC40300x2DDll')
@@ -59,14 +51,13 @@ end
 if ~libisloaded('FMC40300x2DDll')
     loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
 end
-log('DLL loaded');
+setupLog('DLL loaded');
 
 stage = StageController();
 stage.connect();
-log('Stage connected');
+setupLog('Stage connected');
 
 posPtr = libpointer('singlePtr', 0);
-log('posPtr created');
 
 %%
 P.startDepth = 5;   % Acquisition depth in wavelengths
@@ -599,20 +590,19 @@ frameRateFactor = 1;
 
 % Add Vantage root to path so VSX can be found, then cd there as required
 vantage_root = 'C:\Users\Administrator\Documents\VantageNXT-2.1.0';
-log(sprintf('Vantage root exists: %d', isfolder(vantage_root)));
+setupLog(sprintf('Vantage root exists: %d', isfolder(vantage_root)));
 assert(isfolder(vantage_root), 'Vantage root not found: %s', vantage_root);
 addpath(vantage_root);
 cd(vantage_root);
-log(sprintf('cwd: %s', pwd));
-log(sprintf('VSX.m found: %d', isfile(fullfile(vantage_root,'VSX.m'))));
+setupLog(sprintf('cwd: %s  VSX.m found: %d', pwd, isfile(fullfile(vantage_root,'VSX.m'))));
 
 % Save sequence to MatFiles in the Vantage root (VSX looks here)
 if ~isfolder('MatFiles'), mkdir('MatFiles'); end
-log('Saving .mat file...');
+setupLog('Saving .mat file...');
 save('MatFiles/L38-22vfalsh_3d_cdw');
-log('.mat saved. Calling VSX...');
+setupLog('Calling VSX...');
 filename = 'MatFiles/L38-22vfalsh_3d_cdw'; VSX;
-log('VSX returned (closed)');
+setupLog('VSX returned (closed)');
 return
 
 % **** Callback routines to be converted by text2cell function. ****
