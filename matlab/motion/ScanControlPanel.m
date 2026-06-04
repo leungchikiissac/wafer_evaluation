@@ -10,8 +10,8 @@ function ScanControlPanel()
 %   The stage object is shared with VSX via the base workspace ('stage').
 
 TOTAL_SWEEPS  = 6;
-X_RETURN_MM   = -60.0;   % move X back to start
-Y_STEP_MM     =   6.9;   % advance to next lane
+X_STEPS       = 600;   % steps to return X to start (600 x -0.1 mm = -60 mm)
+Y_STEPS       =  69;   % steps to advance to next lane (69 x 0.1 mm = 6.9 mm)
 
 % ── Find SetUp script relative to this file ──────────────────────────────
 here      = fileparts(mfilename('fullpath'));
@@ -122,14 +122,19 @@ sweepsDone = 0;
         try
             stage = evalin('base', 'stage');
 
-            % Single large move — much faster than many small steps
-            setStatus('Returning X to start...', [0.6 0.4 0]);
-            drawnow;
-            stage.moveX(X_RETURN_MM);
+            % Return X: 600 steps x -0.1 mm
+            for i = 1:600
+                setStatus(sprintf('Returning X: step %d / 600', i), [0.6 0.4 0]);
+                drawnow;
+                stage.moveX(-0.1);
+            end
 
-            setStatus('Advancing Y to next lane...', [0.6 0.4 0]);
-            drawnow;
-            stage.moveY(Y_STEP_MM);
+            % Advance Y: 69 steps x 0.1 mm
+            for i = 1:69
+                setStatus(sprintf('Advancing Y: step %d / 69', i), [0.6 0.4 0]);
+                drawnow;
+                stage.moveY(0.1);
+            end
 
             sweepsDone = sweepsDone + 1;
             assignin('base', 'stage', stage);
