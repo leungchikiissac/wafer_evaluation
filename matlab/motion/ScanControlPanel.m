@@ -91,41 +91,35 @@ sweepsDone = 0;
 % ── Callbacks ─────────────────────────────────────────────────────────────
 
     function onLaunchVSX()
-        setStatus('Connecting stage...', [0.6 0.4 0]);
+        setStatus('VSX launching — run SetUp script in Command Window...', ...
+                  [0.6 0.4 0]);
         lockAll();
         drawnow;
-        try
-            % Step 1: load DLL and connect stage only (does not block)
-            acq_dir = fullfile(here, '..', 'acquisition');
-            addpath(fullfile(here));
-            addpath(acq_dir);
 
-            if ~libisloaded('FMC40300x2DDll')
-                loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h');
-            end
+        % Print the run command to the Command Window so the user can
+        % copy-paste it. VSX blocks the MATLAB thread so it cannot be
+        % called from inside a GUI callback or timer.
+        fprintf('\n--- Run this in the MATLAB Command Window to launch VSX ---\n');
+        fprintf("run('%s')\n", strrep(setup_script, '\', '/'));
+        fprintf('------------------------------------------------------------\n\n');
 
-            stage = StageController();
-            stage.connect();
-            assignin('base', 'stage', stage);
+        % Poll the base workspace until 'stage' appears (SetUp script ran)
+        t = timer('ExecutionMode', 'fixedRate', ...
+                  'Period', 1.0, ...
+                  'TimerFcn', @pollForStage);
+        start(t);
+    end
+
+    function pollForStage(t, ~)
+        if evalin('base', "exist('stage','var')")
+            stop(t);
+            delete(t);
             updatePosition();
-
-            % Step 2: launch VSX via a one-shot timer so this callback
-            % returns immediately and the GUI stays responsive
-            t = timer('ExecutionMode', 'singleShot', ...
-                      'StartDelay', 0.2, ...
-                      'TimerFcn', @(~,~) evalin('base', ...
-                          sprintf("run('%s')", strrep(setup_script,'\','/'))));
-            start(t);
-
-            setStatus('Stage connected. VSX launching — GUI stays open.', ...
+            setStatus('Stage ready. Run "Move Batch" in VSX, then Reposition.', ...
                       [0.2 0.5 0.2]);
             hRepos.Enable      = 'on';
             hLaunch.Enable     = 'off';
             hDisconnect.Enable = 'on';
-
-        catch ex
-            setStatus(['Launch failed: ' ex.message], [0.8 0 0]);
-            hLaunch.Enable = 'on';
         end
     end
 

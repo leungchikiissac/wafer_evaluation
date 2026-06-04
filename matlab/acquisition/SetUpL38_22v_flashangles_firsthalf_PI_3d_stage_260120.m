@@ -37,6 +37,8 @@
 % no cdw. just first aperture 0 angle planewave.
 % Copyright © 2013-2023 Verasonics, Inc.
 
+clear all
+
 %% CONNECT MOTION STAGE
 addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matlab\')
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'motion'))
@@ -45,17 +47,8 @@ if ~libisloaded('FMC40300x2DDll')
     loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
 end
 
-% Create StageController only if not already connected (e.g. from ScanControlPanel)
-if ~exist('stage', 'var')
-    stage = StageController();
-    stage.connect();
-end
-
-% Clear all workspace variables except stage, then restore it
-stage_tmp = stage;
-clear all
-stage = stage_tmp;
-clear stage_tmp
+stage = StageController();
+stage.connect();
 
 posPtr = libpointer('singlePtr', 0);
 
