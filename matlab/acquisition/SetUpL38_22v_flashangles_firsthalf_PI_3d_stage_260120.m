@@ -586,12 +586,14 @@ UI(5).Callback = text2cell('%MoveBatchSaveCallback');
 % Specify factor for converting sequenceRate to frameRate.
 frameRateFactor = 1;
 
-% VSX requires cwd to be the Vantage NXT software root (where VSX.m lives)
+% Add Vantage root to path so VSX can be found, then cd there as required
 vantage_root = 'C:\Users\Administrator\Documents\VantageNXT-2.1.0';
 assert(isfolder(vantage_root), 'Vantage root not found: %s', vantage_root);
+addpath(vantage_root);
 cd(vantage_root);
 
-% Save all the structures to a .mat file.
+% Save sequence to MatFiles in the Vantage root (VSX looks here)
+if ~isfolder('MatFiles'), mkdir('MatFiles'); end
 save('MatFiles/L38-22vfalsh_3d_cdw');
 filename = 'MatFiles/L38-22vfalsh_3d_cdw'; VSX;
 return
