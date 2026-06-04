@@ -37,13 +37,20 @@
 % no cdw. just first aperture 0 angle planewave.
 % Copyright © 2013-2023 Verasonics, Inc.
 
+% Capture guiLog callback before clear all wipes it
+if exist('guiLog', 'var')
+    log = guiLog;
+else
+    log = @(msg) fprintf('[SetUp] %s\n', msg);
+end
+
 clear all
-fprintf('[SetUp] Script started\n');
+log('Script started');
 
 %% CONNECT MOTION STAGE
 addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matlab\')
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'motion'))
-fprintf('[SetUp] Paths added\n');
+log('Paths added');
 
 % Reload library
 if libisloaded('FMC40300x2DDll')
@@ -52,14 +59,14 @@ end
 if ~libisloaded('FMC40300x2DDll')
     loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
 end
-fprintf('[SetUp] DLL loaded\n');
+log('DLL loaded');
 
 stage = StageController();
 stage.connect();
-fprintf('[SetUp] Stage connected\n');
+log('Stage connected');
 
 posPtr = libpointer('singlePtr', 0);
-fprintf('[SetUp] posPtr created\n');
+log('posPtr created');
 
 %%
 P.startDepth = 5;   % Acquisition depth in wavelengths
@@ -592,20 +599,20 @@ frameRateFactor = 1;
 
 % Add Vantage root to path so VSX can be found, then cd there as required
 vantage_root = 'C:\Users\Administrator\Documents\VantageNXT-2.1.0';
-fprintf('[SetUp] Vantage root: %s  exists=%d\n', vantage_root, isfolder(vantage_root));
+log(sprintf('Vantage root exists: %d', isfolder(vantage_root)));
 assert(isfolder(vantage_root), 'Vantage root not found: %s', vantage_root);
 addpath(vantage_root);
 cd(vantage_root);
-fprintf('[SetUp] cwd changed to: %s\n', pwd);
-fprintf('[SetUp] VSX.m found: %d\n', isfile(fullfile(vantage_root,'VSX.m')));
+log(sprintf('cwd: %s', pwd));
+log(sprintf('VSX.m found: %d', isfile(fullfile(vantage_root,'VSX.m'))));
 
 % Save sequence to MatFiles in the Vantage root (VSX looks here)
 if ~isfolder('MatFiles'), mkdir('MatFiles'); end
-fprintf('[SetUp] Saving .mat file...\n');
+log('Saving .mat file...');
 save('MatFiles/L38-22vfalsh_3d_cdw');
-fprintf('[SetUp] .mat saved. Launching VSX...\n');
+log('.mat saved. Calling VSX...');
 filename = 'MatFiles/L38-22vfalsh_3d_cdw'; VSX;
-fprintf('[SetUp] VSX returned (closed)\n');
+log('VSX returned (closed)');
 return
 
 % **** Callback routines to be converted by text2cell function. ****
