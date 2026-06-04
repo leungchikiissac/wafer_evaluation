@@ -581,6 +581,9 @@ UI(5).Callback = text2cell('%MoveBatchSaveCallback');
 % Specify factor for converting sequenceRate to frameRate.
 frameRateFactor = 1;
 
+% VSX requires cwd to be the Vantage project root
+cd(fileparts(mfilename('fullpath')));
+
 % Save all the structures to a .mat file.
 save('MatFiles/L38-22vfalsh_3d_cdw');
 filename = 'MatFiles/L38-22vfalsh_3d_cdw'; VSX;
