@@ -38,24 +38,28 @@
 % Copyright © 2013-2023 Verasonics, Inc.
 
 clear all
+fprintf('[SetUp] Script started\n');
 
 %% CONNECT MOTION STAGE
 addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matlab\')
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'motion'))
+fprintf('[SetUp] Paths added\n');
 
-% Reload library load library when library is not loaded will cause connection error
+% Reload library
 if libisloaded('FMC40300x2DDll')
     unloadlibrary('FMC40300x2DDll')
 end
-
 if ~libisloaded('FMC40300x2DDll')
     loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
 end
+fprintf('[SetUp] DLL loaded\n');
 
 stage = StageController();
 stage.connect();
+fprintf('[SetUp] Stage connected\n');
 
 posPtr = libpointer('singlePtr', 0);
+fprintf('[SetUp] posPtr created\n');
 
 %%
 P.startDepth = 5;   % Acquisition depth in wavelengths
@@ -588,14 +592,20 @@ frameRateFactor = 1;
 
 % Add Vantage root to path so VSX can be found, then cd there as required
 vantage_root = 'C:\Users\Administrator\Documents\VantageNXT-2.1.0';
+fprintf('[SetUp] Vantage root: %s  exists=%d\n', vantage_root, isfolder(vantage_root));
 assert(isfolder(vantage_root), 'Vantage root not found: %s', vantage_root);
 addpath(vantage_root);
 cd(vantage_root);
+fprintf('[SetUp] cwd changed to: %s\n', pwd);
+fprintf('[SetUp] VSX.m found: %d\n', isfile(fullfile(vantage_root,'VSX.m')));
 
 % Save sequence to MatFiles in the Vantage root (VSX looks here)
 if ~isfolder('MatFiles'), mkdir('MatFiles'); end
+fprintf('[SetUp] Saving .mat file...\n');
 save('MatFiles/L38-22vfalsh_3d_cdw');
+fprintf('[SetUp] .mat saved. Launching VSX...\n');
 filename = 'MatFiles/L38-22vfalsh_3d_cdw'; VSX;
+fprintf('[SetUp] VSX returned (closed)\n');
 return
 
 % **** Callback routines to be converted by text2cell function. ****
