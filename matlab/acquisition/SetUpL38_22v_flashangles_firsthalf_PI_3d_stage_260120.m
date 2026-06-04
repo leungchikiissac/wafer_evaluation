@@ -43,6 +43,11 @@ clear all
 addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matlab\')
 addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'motion'))
 
+% Reload library load library when library is not loaded will cause connection error
+if libisloaded('FMC40300x2DDll')
+    unloadlibrary('FMC40300x2DDll')
+end
+
 if ~libisloaded('FMC40300x2DDll')
     loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h')
 end
