@@ -91,17 +91,37 @@ sweepsDone = 0;
 % ── Callbacks ─────────────────────────────────────────────────────────────
 
     function onLaunchVSX()
-        setStatus('Launching VSX...', [0.6 0.4 0]);
+        setStatus('Connecting stage...', [0.6 0.4 0]);
         lockAll();
         drawnow;
         try
-            run(setup_script);
+            % Step 1: load DLL and connect stage only (does not block)
+            acq_dir = fullfile(here, '..', 'acquisition');
+            addpath(fullfile(here));
+            addpath(acq_dir);
+
+            if ~libisloaded('FMC40300x2DDll')
+                loadlibrary('FMC4030-Dll.dll', 'FMC4030-DLL.h');
+            end
+
+            stage = StageController();
+            stage.connect();
+            assignin('base', 'stage', stage);
             updatePosition();
-            setStatus('VSX launched. Run "Move Batch" in VSX, then Reposition.', ...
+
+            % Step 2: launch VSX via a one-shot timer so this callback
+            % returns immediately and the GUI stays responsive
+            t = timer('ExecutionMode', 'singleShot', ...
+                      'StartDelay', 0.2, ...
+                      'TimerFcn', @(~,~) run(setup_script));
+            start(t);
+
+            setStatus('Stage connected. VSX launching — GUI stays open.', ...
                       [0.2 0.5 0.2]);
-            hRepos.Enable   = 'on';
-            hLaunch.Enable  = 'off';   % prevent re-launch while VSX is open
+            hRepos.Enable      = 'on';
+            hLaunch.Enable     = 'off';
             hDisconnect.Enable = 'on';
+
         catch ex
             setStatus(['Launch failed: ' ex.message], [0.8 0 0]);
             hLaunch.Enable = 'on';
