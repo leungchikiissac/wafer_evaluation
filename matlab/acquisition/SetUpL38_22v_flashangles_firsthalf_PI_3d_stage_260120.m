@@ -129,17 +129,15 @@ Media.attenuation = -0.5;
 
 % ele_dis = 0.1:0.1:54;
 % lat_dis = 0:6.9:54;
-d_ele = 0.05;
-%0.05;
-%0.1;
-%d_lat = 6.9;
-ele_dis = 0:d_ele:60-d_ele;
-%0:d_ele:55-d_ele;
-%54.95;
-%ele_dis = 0:d_ele:16.05;
-%0:d_ele:-1;
-%0:d_ele:12.05;
-%54.9;
+d_ele        = 0.05;   % sweep step size mm
+sweep_length = 60;     % ← change this to set sweep length in mm
+
+% Sweep Length Check
+assert(sweep_length > 2 && sweep_length < 80, ...
+    'sweep_length = %.1f mm is out of range. Must be between 2 and 80 mm.', sweep_length);
+
+ele_dis = 0:d_ele:sweep_length-d_ele;
+
 lat_dis = 0;
 %0:d_lat:14;
 
