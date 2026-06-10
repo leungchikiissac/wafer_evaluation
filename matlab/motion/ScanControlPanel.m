@@ -109,6 +109,10 @@ sweepsDone = 0;
         % Write log callback into base workspace so SetUp script can call it
         assignin('base', 'guiLog', @addLog);
 
+        % Lateral (Y) distance of this sweep's start from the scan origin,
+        % used by saveRF_dbz_txt to tag the RF data filename.
+        assignin('base', 'sweepLateralY_mm', sweepsDone * Y_STEPS * 0.1);
+
         try
             addLog('Running SetUp script...');
             % evalin base executes the script in base workspace — fully blocking

@@ -26,10 +26,16 @@ matlab/acquisition/MatFiles/*.mat
 *.bin
 *.h5
 *.txt
+!CMakeLists.txt
 
 # ── Vendor binaries (git-lfs) ────────────────────────────────
 vendor/**/*.dll
 vendor/**/*.so
+vendor/**/*.dylib
+vendor/**/*.exe
+vendor/Vantage/license.enc
+vendor/Vantage/System/license.lic
+vendor/Vantage/*
 
 # ── OS ───────────────────────────────────────────────────────
 .DS_Store

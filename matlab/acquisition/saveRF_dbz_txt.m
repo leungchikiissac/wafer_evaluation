@@ -30,10 +30,19 @@ else % not running VSX
     end
 end
 %% change name here
+% Sweep start lateral distance (mm), set by ScanControlPanel before each
+% VSX launch. Defaults to 0.0 if not present (e.g. running standalone).
+try
+    sweepLateralY_mm = evalin('base','sweepLateralY_mm');
+catch
+    sweepLateralY_mm = 0.0;
+end
+lateralTag = sprintf('%.1fmm', sweepLateralY_mm);
+
 %RFfilename = ['RF_',datestr(now,'dd-mmmm-yyyy_HH-MM-SS')];
 filepath = ['E:\issac\chip_point_simu_txt_save',datestr(now,'dd-mmmm-yyyy'),'\'];
 mkdir(filepath);
-RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm',datestr(now,'dd-mmmm-yyyy'), 'rotated90deg'];
+RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm_',lateralTag,'_',datestr(now,'dd-mmmm-yyyy'), 'rotated90deg'];
 %RFfilename = [filepath,'RFbatch_5angle_cdw_single_simupoints',datestr(now,'dd-mmmm-yyyy')];
 %multiangle
 save_RFfilename = [RFfilename,'.txt'];
@@ -45,6 +54,10 @@ fclose(fid);
 rf_size = size(RcvData{2});
 save_RFfilename_size = [RFfilename,'_size.mat'];
 save(save_RFfilename_size,'rf_size');
+
+% Save all base workspace variables (sequence params, stage position, etc.)
+save_workspace_filename = [RFfilename,'_workspace.mat'];
+evalin('base', sprintf("save('%s')", strrep(save_workspace_filename,'\','/')));
 
 toc
 end
