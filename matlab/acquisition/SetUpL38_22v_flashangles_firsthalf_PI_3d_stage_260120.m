@@ -37,7 +37,9 @@
 % no cdw. just first aperture 0 angle planewave.
 % Copyright © 2013-2023 Verasonics, Inc.
 
-clear all
+% Preserve variables set by ScanControlPanel before this script runs
+% (sweepLateralY_mm is used by saveRF_dbz_txt.m to tag the RF filename).
+clearvars -except sweepLateralY_mm guiLog stage
 
 %% CONNECT MOTION STAGE
 addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matlab\')
