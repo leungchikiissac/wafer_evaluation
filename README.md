@@ -57,7 +57,8 @@ wafer_evaluation_/
   │   │   └── VantageInterface.cpp
   │   ├── tests/
   │   │   ├── test_motion.cpp
-  │   │   └── test_vantage.cpp
+  │   │   ├── test_vantage.cpp
+  │   │   └── test_acqsdk_smoke.cpp ← no-hardware smoke test for Verasonics Acquisition SDK
   │   └── build/                    ← gitignored build output
   │
   ├── python/
@@ -94,15 +95,38 @@ wafer_evaluation_/
   │   ├── architecture.md
   │   └── api/
   │       ├── MotionStageAPI.md
-  │       └── VantageInterface.md
+  │       ├── VantageInterface.md
+  │       └── wafer_eval_api.md     ← high-level WaferEvalAPI spec (Python)
   │
   └── vendor/
       ├── FMC4030/
       │   ├── FMC4030-Dll.dll       ← git-lfs
       │   └── FMC4030-Dll.h
       └── Vantage/
-          └── (Verasonics SDK files)
+          ├── license.enc           ← required at this path for the Acquisition SDK
+          ├── System/                ← shared runtime DLLs (Common, Hal, libwinpthread)
+          └── vsacqsdk/              ← Verasonics Acquisition SDK (includes/, libs/, examples/, docs/)
 ```
+
+## Acquisition SDK (Verasonics) Integration
+
+The Verasonics Acquisition SDK lives under `vendor/Vantage/vsacqsdk/`. It depends on
+shared runtime DLLs in `vendor/Vantage/System/` (`libVerasonicsCommon.dll`,
+`libVerasonicsHal.dll`, `libwinpthread-1.dll`) and a license file at
+`vendor/Vantage/license.enc`.
+
+`core/tests/test_acqsdk_smoke.cpp` (CMake target `test_acqsdk_smoke`, test
+`AcqSdkSmoke`) is a no-hardware smoke test that checks the SDK loads and
+reports version/product info correctly. The build automatically copies the
+required runtime DLLs and `license.enc` next to the test executable.
+
+## WaferEvalAPI
+
+A high-level Python API for wafer evaluation scans (connect, move probe,
+B-mode preview, scan a region, disconnect) is specified in
+[`docs/api/wafer_eval_api.md`](docs/api/wafer_eval_api.md). It builds on
+`StageController`, `VantageClient`, and `ScanOrchestrator`. Implementation is
+not yet started.
 
 Core C++ Layer Design
 MotionStageAPI.h — Public C Header
