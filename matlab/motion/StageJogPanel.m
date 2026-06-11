@@ -12,6 +12,11 @@ function StageJogPanel()
 %   Connects its own StageController on launch and disconnects when
 %   the window is closed.
 
+% Set TESTING = true to jog a MockStageController (no hardware) instead
+% of the real FMC4030 stage. Keep this in sync with ScanControlPanel's
+% TESTING flag when using both panels together.
+TESTING = false;
+
 STEP_MIN = 0;
 STEP_MAX = 100;
 
@@ -89,7 +94,11 @@ try
         stage = evalin('base', 'stage');
         setStatus('Connected (shared with ScanControlPanel).', [0.2 0.5 0.2]);
     else
-        stage = StageController();
+        if TESTING
+            stage = MockStageController();
+        else
+            stage = StageController();
+        end
         stage.connect();
         ownsConnection = true;
         assignin('base', 'stage', stage);

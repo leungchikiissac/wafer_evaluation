@@ -9,14 +9,23 @@ function ScanControlPanel()
 %
 %   The stage object is shared with VSX via the base workspace ('stage').
 
+% Set TESTING = true to run the GUI workflow with no hardware attached:
+% uses MockStageController and SetUpMock.m (instant moves, ~1s fake
+% acquisition) instead of the real stage DLL and ~50s VSX sequence.
+TESTING = false;
+
 TOTAL_SWEEPS  = 6;
 X_STEPS       = 600;   % steps to return X to start (600 x -0.1 mm = -60 mm)
 Y_STEPS       =  69;   % steps to advance to next lane (69 x 0.1 mm = 6.9 mm)
 
 % ── Find SetUp script relative to this file ──────────────────────────────
-here      = fileparts(mfilename('fullpath'));
-setup_script = fullfile(here, '..', 'acquisition', ...
-    'SetUpL38_22v_flashangles_firsthalf_PI_3d_stage_260120.m');
+here = fileparts(mfilename('fullpath'));
+if TESTING
+    setup_script = fullfile(here, '..', 'acquisition', 'SetUpMock.m');
+else
+    setup_script = fullfile(here, '..', 'acquisition', ...
+        'SetUpL38_22v_flashangles_firsthalf_PI_3d_stage_260120.m');
+end
 assert(isfile(setup_script), 'SetUp script not found: %s', setup_script);
 
 % ── Build figure ──────────────────────────────────────────────────────────
