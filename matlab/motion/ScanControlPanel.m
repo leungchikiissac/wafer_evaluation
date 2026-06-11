@@ -177,13 +177,17 @@ sweepsDone = 0;
     end
 
     function onReset()
-        sweepsDone     = 0;
-        hProgress.Text = sprintf('0 / %d', TOTAL_SWEEPS);
-        hPos.Text      = 'x=-.--- y=-.--- z=-.--- mm';
-        hRepos.Enable  = 'off';
+        % Re-enable Launch VSX without disturbing the sweep count —
+        % "Reset" here just unlocks the GUI, it does not start a new session.
+        if sweepsDone >= TOTAL_SWEEPS
+            sweepsDone     = 0;
+            hProgress.Text = sprintf('0 / %d', TOTAL_SWEEPS);
+            hPos.Text      = 'x=-.--- y=-.--- z=-.--- mm';
+            hRepos.Enable  = 'off';
+        end
         hFinish.Enable = 'off';
         hLaunch.Enable = 'on';   % allow re-launching VSX
-        setStatus('Ready. Press Launch VSX to start a new session.', ...
+        setStatus('Ready. Press Launch VSX to continue.', ...
                   [0.4 0.4 0.4]);
     end
 
