@@ -1,4 +1,4 @@
-function ScanControlPanel()
+function fig = ScanControlPanel(testing)
 % ScanControlPanel  Multi-sweep orchestration GUI.
 %
 %   Workflow:
@@ -8,11 +8,19 @@ function ScanControlPanel()
 %     4. Repeat steps 2-3 for each of the 6 sweep lanes
 %
 %   The stage object is shared with VSX via the base workspace ('stage').
+%
+%   ScanControlPanel(testing) — pass true to force TESTING mode
+%   (MockStageController + SetUpMock.m, no hardware), overriding the
+%   TESTING constant below. Used by automated tests. Returns the figure
+%   handle.
 
 % Set TESTING = true to run the GUI workflow with no hardware attached:
 % uses MockStageController and SetUpMock.m (instant moves, ~1s fake
 % acquisition) instead of the real stage DLL and ~50s VSX sequence.
 TESTING = false;
+if nargin > 0
+    TESTING = testing;
+end
 
 TOTAL_SWEEPS  = 6;
 X_STEPS       = 600;   % steps to return X to start (600 x -0.1 mm = -60 mm)
