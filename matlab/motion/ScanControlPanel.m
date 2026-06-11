@@ -163,9 +163,10 @@ sweepsDone = 0;
                 hFinish.Enable  = 'on';
                 hDisconnect.Enable = 'on';
             else
-                setStatus(sprintf('Lane %d done. Run "Move Batch" in VSX, then Reposition.', ...
+                setStatus(sprintf('Lane %d done. Press Launch VSX for next lane.', ...
                           sweepsDone), [0.2 0.5 0.2]);
-                hRepos.Enable  = 'on';
+                hRepos.Enable  = 'off';
+                hLaunch.Enable = 'on';
                 hFinish.Enable = 'on';
             end
 
