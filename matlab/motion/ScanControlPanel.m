@@ -119,11 +119,17 @@ sweepsDone = 0;
         % used by saveRF_dbz_txt to tag the RF data filename.
         assignin('base', 'sweepLateralY_mm', sweepsDone * Y_STEPS * 0.1);
 
+        % Tell StageJogPanel (if open) that the stage is busy with VSX —
+        % it must not send jog commands until this is cleared.
+        assignin('base', 'sweepInProgress', true);
+
         try
             addLog('Running SetUp script...');
             % evalin base executes the script in base workspace — fully blocking
             evalin('base', sprintf("run('%s')", strrep(setup_script,'\','/')));
             addLog('SetUp script returned.');
+
+            assignin('base', 'sweepInProgress', false);
 
             % VSX closed — SetUp script has finished
             updatePosition();
@@ -133,6 +139,7 @@ sweepsDone = 0;
             hDisconnect.Enable = 'on';
 
         catch ex
+            assignin('base', 'sweepInProgress', false);
             setStatus(['Launch failed: ' ex.message], [0.8 0 0]);
             hLaunch.Enable = 'on';
         end
