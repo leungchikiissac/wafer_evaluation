@@ -1,6 +1,7 @@
 # wafer_evaluation
 
 System Architecture
+```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Physical Hardware                             │
 │   Verasonics Vantage NXT          FMC4030 Motion Stage          │
@@ -35,9 +36,10 @@ System Architecture
          Orchestration Layer
          (Python or MATLAB)
          coordinates both systems
-
+```
 
 Repository Structure
+```
 wafer_evaluation_/
   │
   ├── README.md
@@ -100,12 +102,13 @@ wafer_evaluation_/
       │   └── FMC4030-Dll.h
       └── Vantage/
           └── (Verasonics SDK files)
-
+```
 
 Core C++ Layer Design
 MotionStageAPI.h — Public C Header
 The header exposes a pure C interface (not C++) so that both Python ctypes and MATLAB MEX can call it without C++ ABI complications:
-c/* MotionStageAPI.h
+```c
+/* MotionStageAPI.h
  * Pure C interface to the FMC4030 motion stage.
  * Compiled as C++ internally but exported as C symbols.
  *
@@ -206,9 +209,11 @@ STAGE_API const char* Stage_GetErrorString(int error_code);
 #endif
 
 #endif /* MOTION_STAGE_API_H */
+```
 
 MotionStageAPI.cpp — Implementation
-cpp// MotionStageAPI.cpp
+```cpp
+// MotionStageAPI.cpp
 // C++ implementation of the public C stage API.
 // Wraps FMC4030 DLL calls with polling, verification, error handling.
 
@@ -509,10 +514,12 @@ STAGE_API const char* Stage_GetErrorString(int error_code) {
 }
 
 } // extern "C"
+```
 
 How Each Language Connects to the Core
 Python — via ctypes
-python# python/stage/StageController.py (revised)
+```python
+# python/stage/StageController.py (revised)
 # Now wraps the C core library instead of FMC4030 DLL directly
 
 from ctypes import CDLL, WinDLL, Structure, c_int, c_float, byref
@@ -577,8 +584,11 @@ class StageController:
 
     def __enter__(self):  return self
     def __exit__(self, *_): self.disconnect()
+```
+
 MATLAB — via MEX
-cpp// matlab/mex/mex_motion_stage.cpp
+```cpp
+// matlab/mex/mex_motion_stage.cpp
 // MEX wrapper: exposes Stage_Move etc. to MATLAB scripts.
 // Build with: mex mex_motion_stage.cpp -L../../core/build -lMotionStage
 
@@ -640,8 +650,11 @@ void mexFunction(int nlhs, mxArray* plhs[],
                           "Unknown command: %s", cmd);
     }
 }
+```
+
 Updated move3dstage.m becomes very simple:
-matlabfunction move3dstage()
+```matlab
+function move3dstage()
 persistent counter
 if isempty(counter), counter = 0; end
 
@@ -656,9 +669,11 @@ fprintf('Step %d | x=%.3f y=%.3f z=%.3f mm\n', ...
 
 counter = counter + 1;
 end
+```
 
 Build System — CMakeLists.txt
-cmakecmake_minimum_required(VERSION 3.16)
+```cmake
+cmake_minimum_required(VERSION 3.16)
 project(MotionStageAPI VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -685,9 +700,11 @@ add_test(NAME MotionTests COMMAND test_motion)
 # Install
 install(TARGETS MotionStage DESTINATION lib)
 install(FILES include/MotionStageAPI.h DESTINATION include)
+```
 
 .gitignore for the Full Monorepo
-gitignore# ── C/C++ build ──────────────────────────────────────────────
+```gitignore
+# ── C/C++ build ──────────────────────────────────────────────
 core/build/
 *.o
 *.obj
@@ -721,8 +738,10 @@ vendor/**/*.so
 # ── OS ───────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+```
 
 Summary
+```
 Architecture:
   C/C++ core layer  →  wraps FMC4030 DLL
                         polling, error handling, position verification
@@ -752,3 +771,4 @@ Key benefit:
   Bug fixed once → Python and MATLAB both benefit
   Parameters changed once → all languages see it
   New language added → just wrap the C header
+```
