@@ -309,9 +309,9 @@ sweepsDone = 0;
             stage = getOrConnectStage();
             switch axisName
                 case 'X'
-                    stage.moveX(distance);
+                    stage.moveX(distance, 'vel', 40, 'accel', 100, 'decel', 100);
                 case 'Y'
-                    stage.moveY(distance);
+                    stage.moveY(distance, 'vel', 40, 'accel', 100, 'decel', 100);
             end
             assignin('base', 'stage', stage);
             updatePosition();
