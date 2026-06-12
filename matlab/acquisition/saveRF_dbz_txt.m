@@ -13,23 +13,34 @@ tic
 % File name: saveRF.m - A tool to save RF
 %
 %linear_dis = evalin('base','linear_dis');
-if ~isempty(findobj('tag','UI')) % running VSX
-    if evalin('base','freeze')==0   % no action if not in freeze
+disp('saveRF_dbz_txt: start');
+runningVSX = ~isempty(findobj('tag','UI'));
+fprintf('saveRF_dbz_txt: runningVSX = %d\n', runningVSX);
+if runningVSX % running VSX
+    freezeVal = evalin('base','freeze');
+    fprintf('saveRF_dbz_txt: freeze = %d\n', freezeVal);
+    if freezeVal==0   % no action if not in freeze
+        disp('saveRF_dbz_txt: VSX not frozen — aborting. Press Freeze first.');
         msgbox('Please freeze VSX');
         return
     else
+        disp('saveRF_dbz_txt: calling copyBuffers...');
         Control.Command = 'copyBuffers';
         runAcq(Control); % NOTE:  If runAcq() has an error, it reports it then exits MATLAB.
+        disp('saveRF_dbz_txt: copyBuffers done, fetching RcvData from base...');
         RcvData = evalin('base','RcvData');
     end
 else % not running VSX
+    disp('saveRF_dbz_txt: not running VSX, checking for RcvData in base...');
     if evalin('base','exist(''RcvData'',''var'');')
         RcvData = evalin('base','RcvData');
     else
-        disp('RcvData does not exist!');
+        disp('saveRF_dbz_txt: RcvData does not exist! Aborting.');
         return
     end
 end
+fprintf('saveRF_dbz_txt: RcvData{2} class=%s size=%s\n', ...
+        class(RcvData{2}), mat2str(size(RcvData{2})));
 %% change name here
 % Sweep start lateral distance (mm), set by ScanControlPanel before each
 % VSX launch. Defaults to 0.0 if not present (e.g. running standalone).
@@ -42,6 +53,7 @@ lateralTag = sprintf('%.1fmm', sweepLateralY_mm);
 
 %RFfilename = ['RF_',datestr(now,'dd-mmmm-yyyy_HH-MM-SS')];
 filepath = ['E:\issac\chip_point_simu_txt_save',datestr(now,'dd-mmmm-yyyy'),'\'];
+fprintf('saveRF_dbz_txt: target folder = %s (exists=%d)\n', filepath, isfolder(filepath));
 if ~isfolder(filepath)
     mkdir(filepath);
 end
@@ -49,24 +61,28 @@ RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm_',lateralTag
 %RFfilename = [filepath,'RFbatch_5angle_cdw_single_simupoints',datestr(now,'dd-mmmm-yyyy')];
 %multiangle
 save_RFfilename = [RFfilename,'.txt'];
+fprintf('saveRF_dbz_txt: writing RF data to %s\n', save_RFfilename);
 
 fid = fopen(save_RFfilename,'w');
 if fid == -1
     error('saveRF_dbz_txt:openFailed', 'Could not open file for writing: %s', save_RFfilename);
 end
-fwrite(fid,RcvData{2},'double');
+nWritten = fwrite(fid,RcvData{2},'double');
 fclose(fid);
+fprintf('saveRF_dbz_txt: wrote %d elements to %s\n', nWritten, save_RFfilename);
 
 rf_size = size(RcvData{2});
 save_RFfilename_size = [RFfilename,'_size.mat'];
+fprintf('saveRF_dbz_txt: writing size file to %s\n', save_RFfilename_size);
 save(save_RFfilename_size,'rf_size');
 
 % Save all base workspace variables (sequence params, stage position, etc.)
 save_workspace_filename = [RFfilename,'_workspace.mat'];
+fprintf('saveRF_dbz_txt: writing workspace file to %s\n', save_workspace_filename);
 evalin('base', sprintf("save('%s')", strrep(save_workspace_filename,'\','/')));
 
-fprintf('Saved RF data, size file, and workspace to:\n  %s\n', filepath);
-fprintf('  (base name: %s)\n', RFfilename);
+fprintf('saveRF_dbz_txt: done. Saved RF data, size file, and workspace to:\n  %s\n', filepath);
+fprintf('saveRF_dbz_txt: base name: %s\n', RFfilename);
 
 toc
 end
