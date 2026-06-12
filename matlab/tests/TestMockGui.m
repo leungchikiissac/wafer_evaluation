@@ -99,7 +99,7 @@ classdef TestMockGui < matlab.unittest.TestCase
         function testFullSixLaneCycle(testCase)
             % Drive ScanControlPanel(true) through Launch -> Reposition
             % six times and verify progress, sweep count, and the
-            % per-sweep lateral-distance tag passed to saveRF_dbz_txt.
+            % per-sweep lateral-distance tag passed to saveRF_issac_txt.
 
             fig = ScanControlPanel(true);
             testCase.addTeardown(@() delete(fig));
@@ -118,7 +118,7 @@ classdef TestMockGui < matlab.unittest.TestCase
                 lateralY = evalin('base', 'sweepLateralY_mm');
                 testCase.verifyEqual(lateralY, (lane-1) * 6.9, 'AbsTol', 1e-9);
 
-                % Track the file SetUpMock/saveRF_dbz_txt wrote, for cleanup
+                % Track the file SetUpMock/saveRF_issac_txt wrote, for cleanup
                 files = dir(sprintf( ...
                     'E:\\issac\\chip_point_simu_txt_save%s\\*%.1fmm*', ...
                     datestr(now,'dd-mmmm-yyyy'), lateralY));
