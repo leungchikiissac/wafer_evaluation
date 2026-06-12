@@ -20,6 +20,7 @@ if ~isempty(findobj('tag','UI')) % running VSX
     else
         Control.Command = 'copyBuffers';
         runAcq(Control); % NOTE:  If runAcq() has an error, it reports it then exits MATLAB.
+        RcvData = evalin('base','RcvData');
     end
 else % not running VSX
     if evalin('base','exist(''RcvData'',''var'');')
@@ -41,13 +42,18 @@ lateralTag = sprintf('%.1fmm', sweepLateralY_mm);
 
 %RFfilename = ['RF_',datestr(now,'dd-mmmm-yyyy_HH-MM-SS')];
 filepath = ['E:\issac\chip_point_simu_txt_save',datestr(now,'dd-mmmm-yyyy'),'\'];
-mkdir(filepath);
+if ~isfolder(filepath)
+    mkdir(filepath);
+end
 RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm_',lateralTag,'_',datestr(now,'dd-mmmm-yyyy'), 'rotated90deg'];
 %RFfilename = [filepath,'RFbatch_5angle_cdw_single_simupoints',datestr(now,'dd-mmmm-yyyy')];
 %multiangle
 save_RFfilename = [RFfilename,'.txt'];
 
 fid = fopen(save_RFfilename,'w');
+if fid == -1
+    error('saveRF_dbz_txt:openFailed', 'Could not open file for writing: %s', save_RFfilename);
+end
 fwrite(fid,RcvData{2},'double');
 fclose(fid);
 
@@ -58,6 +64,9 @@ save(save_RFfilename_size,'rf_size');
 % Save all base workspace variables (sequence params, stage position, etc.)
 save_workspace_filename = [RFfilename,'_workspace.mat'];
 evalin('base', sprintf("save('%s')", strrep(save_workspace_filename,'\','/')));
+
+fprintf('Saved RF data, size file, and workspace to:\n  %s\n', filepath);
+fprintf('  (base name: %s)\n', RFfilename);
 
 toc
 end
