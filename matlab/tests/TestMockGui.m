@@ -9,6 +9,15 @@ classdef TestMockGui < matlab.unittest.TestCase
         CreatedFiles = {}
     end
 
+    methods (TestClassSetup)
+        function addMotionToPath(testCase)
+            motionDir = fullfile(fileparts(mfilename('fullpath')), '..', 'motion');
+            acqDir    = fullfile(fileparts(mfilename('fullpath')), '..', 'acquisition');
+            addpath(motionDir, acqDir);
+            testCase.addTeardown(@() rmpath(motionDir, acqDir));
+        end
+    end
+
     methods (TestMethodSetup)
         function resetMockStage(testCase)
             % Reset the shared mock position before every test
