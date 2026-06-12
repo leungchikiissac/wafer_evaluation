@@ -192,6 +192,10 @@ sweepsDone = 0;
 
             assignin('base', 'sweepInProgress', false);
 
+            if ~isvalid(fig)
+                return
+            end
+
             % VSX closed — SetUp script has finished
             updatePosition();
             setStatus('VSX closed. Ready to reposition.', [0.2 0.5 0.2]);
@@ -201,8 +205,10 @@ sweepsDone = 0;
 
         catch ex
             assignin('base', 'sweepInProgress', false);
-            setStatus(['Launch failed: ' ex.message], [0.8 0 0]);
-            hLaunch.Enable = 'on';
+            if isvalid(fig)
+                setStatus(['Launch failed: ' ex.message], [0.8 0 0]);
+                hLaunch.Enable = 'on';
+            end
         end
     end
 
