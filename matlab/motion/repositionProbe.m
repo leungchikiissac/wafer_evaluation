@@ -16,9 +16,9 @@ fprintf('Returning X-axis: -60 mm\n');
 stage.moveX(-60);
 stage.printPosition();
 
-% Advance Y by 6.9 mm in a single move (same reasoning as X above).
-fprintf('Advancing Y-axis: +6.9 mm\n');
-stage.moveY(6.9);
+% Advance Y by -6.9 mm in a single move (same reasoning as X above).
+fprintf('Advancing Y-axis: -6.9 mm\n');
+stage.moveY(-6.9);
 stage.printPosition();
 
 fprintf('Reposition complete.\n');
