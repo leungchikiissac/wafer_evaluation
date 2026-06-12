@@ -242,6 +242,22 @@ classdef TestMockGui < matlab.unittest.TestCase
             assignin('base', 'sweepInProgress', false);
         end
 
+        function testEmbeddedJogControlsMoveStage(testCase)
+            fig = ScanControlPanel(true);
+            testCase.addTeardown(@() delete(fig));
+            drawnow;
+
+            hStepEdit = findall(fig, '-isa', 'matlab.ui.control.NumericEditField');
+            hJogUp = findobj(fig, 'Text', char(9650)); % -X
+
+            hStepEdit.Value = 3;
+            hJogUp.ButtonPushedFcn(hJogUp, []);
+
+            stage = evalin('base', 'stage');
+            pos = stage.getPosition();
+            testCase.verifyEqual(pos.x, -3, 'AbsTol', 1e-9);
+        end
+
     end
 
 end

@@ -44,7 +44,7 @@ if ~isempty(old)
 end
 
 fig = uifigure('Name', 'Scan Control Panel', ...
-               'Position', [100 100 340 560], ...
+               'Position', [100 100 620 560], ...
                'Tag', 'ScanControlPanel', ...
                'Resize', 'off');
 
@@ -117,6 +117,50 @@ hLog = uitextarea(fig, ...
         'Editable', 'off', ...
         'FontSize', 9, ...
         'Value', {''});
+
+% ── Stage Jog Panel (right column) ─────────────────────────────────────────
+uilabel(fig, 'Text', 'Stage Jog', ...
+        'Position', [360 515 240 30], ...
+        'FontSize', 16, 'FontWeight', 'bold', ...
+        'HorizontalAlignment', 'center');
+
+uilabel(fig, 'Text', 'Step (mm):', ...
+        'Position', [360 475 80 22], 'FontWeight', 'bold');
+hStep = uieditfield(fig, 'numeric', ...
+        'Position', [445 475 80 22], ...
+        'Value', 1, ...
+        'Limits', [0 100], ...
+        'LowerLimitInclusive', 'off', ...
+        'ValueDisplayFormat', '%.3f');
+
+jogBtnSize = 50;
+jcx = 470; jcy = 380;
+
+hJogUp = uibutton(fig, 'Text', char(9650), ...   % ▲  -X
+        'Position', [jcx-jogBtnSize/2, jcy+jogBtnSize, jogBtnSize, jogBtnSize], ...
+        'FontSize', 16, ...
+        'ButtonPushedFcn', @(~,~) onJog('X', -1));
+
+hJogDown = uibutton(fig, 'Text', char(9660), ... % ▼  +X
+        'Position', [jcx-jogBtnSize/2, jcy-jogBtnSize, jogBtnSize, jogBtnSize], ...
+        'FontSize', 16, ...
+        'ButtonPushedFcn', @(~,~) onJog('X', +1));
+
+hJogLeft = uibutton(fig, 'Text', char(9664), ... % ◄  -Y
+        'Position', [jcx-jogBtnSize-jogBtnSize/2, jcy, jogBtnSize, jogBtnSize], ...
+        'FontSize', 16, ...
+        'ButtonPushedFcn', @(~,~) onJog('Y', -1));
+
+hJogRight = uibutton(fig, 'Text', char(9654), ... % ►  +Y
+        'Position', [jcx+jogBtnSize/2, jcy, jogBtnSize, jogBtnSize], ...
+        'FontSize', 16, ...
+        'ButtonPushedFcn', @(~,~) onJog('Y', +1));
+
+jogButtons = [hJogUp hJogDown hJogLeft hJogRight];
+
+hJogStatus = uilabel(fig, 'Text', 'Jog ready.', ...
+        'Position', [360 290 240 22], 'FontColor', [0.5 0.5 0.5], ...
+        'HorizontalAlignment', 'center');
 
 % ── State ─────────────────────────────────────────────────────────────────
 sweepsDone = 0;
@@ -230,6 +274,72 @@ sweepsDone = 0;
         end
         hDisconnect.Enable = 'off';
         hRepos.Enable      = 'off';
+    end
+
+    function onJog(axisName, sign)
+        try
+            busy = evalin('base', ...
+                'exist(''sweepInProgress'',''var'') && sweepInProgress');
+        catch
+            busy = false;
+        end
+        if busy
+            setJogStatus('Sweep in progress — jog disabled.', [0.8 0 0]);
+            return
+        end
+
+        step = hStep.Value;
+        if isnan(step) || step <= 0 || step > 100
+            setJogStatus('Step must be > 0 and <= 100 mm.', [0.8 0 0]);
+            return
+        end
+        if abs(step - round(step, 3)) > eps(step) * 10
+            setJogStatus('Step must have at most 3 decimal places.', [0.8 0 0]);
+            return
+        end
+
+        distance = sign * step;
+
+        [jogButtons.Enable] = deal('off');
+        setJogStatus(sprintf('Moving %s by %.3f mm...', axisName, distance), ...
+                  [0.6 0.4 0]);
+        drawnow;
+
+        try
+            stage = getOrConnectStage();
+            switch axisName
+                case 'X'
+                    stage.moveX(distance);
+                case 'Y'
+                    stage.moveY(distance);
+            end
+            assignin('base', 'stage', stage);
+            updatePosition();
+            setJogStatus('Jog ready.', [0.2 0.5 0.2]);
+        catch ex
+            setJogStatus(['Move failed: ' ex.message], [0.8 0 0]);
+        end
+
+        [jogButtons.Enable] = deal('on');
+    end
+
+    function stage = getOrConnectStage()
+        if evalin('base', 'exist(''stage'',''var'')')
+            stage = evalin('base', 'stage');
+        else
+            if TESTING
+                stage = MockStageController();
+            else
+                stage = StageController();
+            end
+            stage.connect();
+            assignin('base', 'stage', stage);
+        end
+    end
+
+    function setJogStatus(msg, color)
+        hJogStatus.Text      = msg;
+        hJogStatus.FontColor = color;
     end
 
     % ── Helpers ───────────────────────────────────────────────────────────
