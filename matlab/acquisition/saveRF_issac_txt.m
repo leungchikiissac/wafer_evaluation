@@ -28,10 +28,22 @@ if runningVSX % running VSX
         Control.Command = 'copyBuffers';
         runAcq(Control); % NOTE:  If runAcq() has an error, it reports it then exits MATLAB.
         disp('saveRF_issac_txt: copyBuffers done, fetching RcvData from base...');
-        % NOTE: don't pre-check exist('RcvData','var')/who — copyBuffers
-        % populates RcvData via a path that the variable listing doesn't see
-        % immediately, but a direct evalin read resolves it fine.
-        RcvData = evalin('base','RcvData');
+        % copyBuffers/runAcq may need an event-queue flush before RcvData
+        % lands in base — retry briefly instead of failing immediately.
+        RcvData = [];
+        for attempt = 1:20
+            if evalin('base','exist(''RcvData'',''var'')')
+                RcvData = evalin('base','RcvData');
+                break
+            end
+            fprintf('saveRF_issac_txt: RcvData not ready yet (attempt %d), waiting...\n', attempt);
+            drawnow;
+            pause(0.25);
+        end
+        if isempty(RcvData)
+            disp('saveRF_issac_txt: RcvData never appeared in base — aborting.');
+            return
+        end
     end
 else % not running VSX
     disp('saveRF_issac_txt: not running VSX, checking for RcvData in base...');
