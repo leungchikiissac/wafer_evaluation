@@ -603,7 +603,11 @@ setupLog(sprintf('cwd: %s  VSX.m found: %d', pwd, isfile(fullfile(vantage_root,'
 % Save sequence to MatFiles in the Vantage root (VSX looks here)
 if ~isfolder('MatFiles'), [~,~] = mkdir('MatFiles'); end
 setupLog('Saving .mat file...');
-save('MatFiles/L38-22vfalsh_3d_cdw');
+% Exclude guiLog: it's a handle to a nested function inside
+% ScanControlPanel, so saving it captures the whole GUI figure in this
+% .mat file — when VSX loads it back, that re-creates a frozen "ghost"
+% copy of the Scan Control Panel window.
+save('MatFiles/L38-22vfalsh_3d_cdw', '-regexp', '^(?!guiLog$).');
 setupLog('Calling VSX...');
 filename = 'MatFiles/L38-22vfalsh_3d_cdw'; VSX;
 setupLog('VSX returned (closed)');
