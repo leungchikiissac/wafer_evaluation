@@ -223,7 +223,7 @@ classdef TestMockGui < matlab.unittest.TestCase
             testCase.verifyClass(stage, 'MockStageController');
 
             hUp = findobj(jogFig, 'Text', char(9650)); % -X
-            hStepEdit = findall(jogFig, 'Type', 'uieditfield');
+            hStepEdit = findall(jogFig, '-isa', 'matlab.ui.control.NumericEditField');
 
             hStepEdit.Value = 5;
 
