@@ -1,4 +1,4 @@
-function StageJogPanel()
+function fig = StageJogPanel()
 % StageJogPanel  Manual jog GUI for the FMC4030 stage.
 %
 %   Enter a step size (mm) and press an arrow button to move the stage

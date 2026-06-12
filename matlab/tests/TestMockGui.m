@@ -133,7 +133,7 @@ classdef TestMockGui < matlab.unittest.TestCase
                         sprintf('%d / 6', lane));
                     % Launch should re-enable for the next lane without
                     % needing the Reset button (regression check).
-                    testCase.verifyEqual(hLaunch.Enable, 'on');
+                    testCase.verifyEqual(char(hLaunch.Enable), 'on');
                 end
             end
 
@@ -173,7 +173,7 @@ classdef TestMockGui < matlab.unittest.TestCase
             % Press Reset/Relaunch mid-session — progress must stay at 1/6
             hReset.ButtonPushedFcn(hReset, []);
             testCase.verifyEqual(hProgress.Text, '1 / 6');
-            testCase.verifyEqual(hLaunch.Enable, 'on');
+            testCase.verifyEqual(char(hLaunch.Enable), 'on');
 
             % Next launch should use the lane-2 lateral tag, not 0.0mm
             hLaunch.ButtonPushedFcn(hLaunch, []);
