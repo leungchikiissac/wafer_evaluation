@@ -216,6 +216,7 @@ classdef TestMockGui < matlab.unittest.TestCase
 
             jogFig = StageJogPanel();
             testCase.addTeardown(@() delete(jogFig));
+            drawnow;
 
             % Same stage object shared via base workspace
             stage = evalin('base', 'stage');
