@@ -208,6 +208,12 @@ classdef TestMockGui < matlab.unittest.TestCase
             scFig = ScanControlPanel(true);
             testCase.addTeardown(@() delete(scFig));
 
+            % Seed a connected mock stage into the base workspace so
+            % StageJogPanel reuses it without needing a full Launch VSX cycle.
+            seedStage = MockStageController();
+            seedStage.connect();
+            assignin('base', 'stage', seedStage);
+
             jogFig = StageJogPanel();
             testCase.addTeardown(@() delete(jogFig));
 
