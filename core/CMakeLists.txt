@@ -37,6 +37,31 @@ add_executable(test_vantage tests/test_vantage.cpp)
 target_link_libraries(test_vantage VantageInterface_static)
 add_test(NAME VantageTests COMMAND test_vantage)
 
+# ── Acquisition executables ───────────────────────────────────
+set(ACQSDK_ROOT "${CMAKE_SOURCE_DIR}/../vendor/Vantage/vsacqsdk")
+set(VANTAGE_ROOT "${CMAKE_SOURCE_DIR}/../vendor/Vantage")
+if(EXISTS "${ACQSDK_ROOT}/includes/VK_AcqSdk.h")
+    add_executable(simple_flash src/acquisition/simple_flash.cpp)
+    target_include_directories(simple_flash PRIVATE "${ACQSDK_ROOT}/includes")
+    target_link_directories(simple_flash PRIVATE "${ACQSDK_ROOT}/libs")
+    target_link_libraries(simple_flash VerasonicsAcqSDK)
+    message(STATUS "simple_flash acquisition target enabled")
+
+    foreach(dep IN ITEMS
+            "${ACQSDK_ROOT}/libs/libVerasonicsAcqSDK.dll"
+            "${VANTAGE_ROOT}/System/libVerasonicsCommon.dll"
+            "${VANTAGE_ROOT}/System/libVerasonicsHal.dll"
+            "${VANTAGE_ROOT}/System/libwinpthread-1.dll"
+            "${VANTAGE_ROOT}/license.enc")
+        if(EXISTS "${dep}")
+            add_custom_command(TARGET simple_flash POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dep}" "$<TARGET_FILE_DIR:simple_flash>")
+        endif()
+    endforeach()
+else()
+    message(STATUS "AcqSDK not found — simple_flash skipped")
+endif()
+
 # ── Acquisition SDK smoke test (no hardware required) ────────
 set(ACQSDK_ROOT "${CMAKE_SOURCE_DIR}/../vendor/Vantage/vsacqsdk")
 set(VANTAGE_ROOT "${CMAKE_SOURCE_DIR}/../vendor/Vantage")
