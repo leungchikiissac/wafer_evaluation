@@ -207,13 +207,6 @@ sweepsDone = 0;
             hFinish.Enable     = 'on';
             hDisconnect.Enable = 'on';
 
-            % SetUp script has created/connected the stage in base — jog is
-            % now safe to use.
-            if evalin('base', 'exist(''stage'',''var'')')
-                [jogButtons.Enable] = deal('on');
-                setJogStatus('Jog ready.', [0.2 0.5 0.2]);
-            end
-
         catch ex
             assignin('base', 'sweepInProgress', false);
             if isvalid(fig)
@@ -393,6 +386,12 @@ sweepsDone = 0;
             hLog.Value = {line};
         else
             hLog.Value = [current; {line}];
+        end
+
+        % Stage is connected by the time the SetUp script logs "Calling VSX"
+        if contains(msg, 'Calling VSX')
+            [jogButtons.Enable] = deal('on');
+            setJogStatus('Jog ready.', [0.2 0.5 0.2]);
         end
         % Auto-scroll to bottom
         scroll(hLog, 'bottom');
