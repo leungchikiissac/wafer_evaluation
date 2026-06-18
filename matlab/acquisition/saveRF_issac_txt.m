@@ -54,6 +54,10 @@ rf_size = size(RcvData{2});
 save_RFfilename_size = [RFfilename,'_size.mat'];
 save(save_RFfilename_size,'rf_size');
 
+% Save base workspace (sequence params, stage position, etc.)
+save_workspace_filename = strrep([RFfilename,'_workspace.mat'],'\','/');
+evalin('base', sprintf("save('%s')", save_workspace_filename));
+
 fprintf('saveRF_issac_txt: saved to %s\n', filepath);
 toc
 end
