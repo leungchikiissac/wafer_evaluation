@@ -54,12 +54,15 @@ rf_size = size(RcvData{2});
 save_RFfilename_size = [RFfilename,'_size.mat'];
 save(save_RFfilename_size,'rf_size');
 
-% Save base workspace (sequence params, stage position, etc.).
-% Exclude non-serializable VSX Java objects and guiLog function handle.
 save_workspace_filename = strrep([RFfilename,'_workspace.mat'],'\','/');
-evalin('base', sprintf( ...
-    "save('%s', '-regexp', '^(?!colorMapEvent$|hwEventHandler$|imageViewer$|imageViewerMenu$|spatialPositionEvent$|spatialUnitsEvent$|vantageWindow$|guiLog$).')", ...
-    save_workspace_filename));
+varInfo  = evalin('base','whos');
+keepable = {'double','single','int8','int16','int32','int64', ...
+            'uint8','uint16','uint32','uint64','char','logical','struct','cell'};
+keepVars = varInfo(ismember({varInfo.class}, keepable));
+if ~isempty(keepVars)
+    evalin('base', sprintf("save('%s', '%s')", ...
+        save_workspace_filename, strjoin({keepVars.name}, "', '")));
+end
 
 fprintf('saveRF_issac_txt: saved to %s\n', filepath);
 toc
