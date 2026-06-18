@@ -11,6 +11,10 @@ classdef MockStageController < handle
 %   session (mirrors how the real FMC4030 retains absolute position
 %   across SetUp script re-launches).
 
+    properties
+        moveDelay = 0   % seconds to pause after each move (0 = instant)
+    end
+
     properties (Access = private)
         isConnected = false
     end
@@ -32,16 +36,19 @@ classdef MockStageController < handle
         function moveX(obj, distanceMm, varargin)
             obj.requireConnection();
             obj.movePosition('x', distanceMm);
+            if obj.moveDelay > 0, pause(obj.moveDelay); end
         end
 
         function moveY(obj, distanceMm, varargin)
             obj.requireConnection();
             obj.movePosition('y', distanceMm);
+            if obj.moveDelay > 0, pause(obj.moveDelay); end
         end
 
         function moveZ(obj, distanceMm, varargin)
             obj.requireConnection();
             obj.movePosition('z', distanceMm);
+            if obj.moveDelay > 0, pause(obj.moveDelay); end
         end
 
         function pos = getPosition(obj)

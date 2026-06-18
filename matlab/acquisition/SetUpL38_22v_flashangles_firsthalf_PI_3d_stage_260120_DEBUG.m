@@ -47,6 +47,7 @@ setupLog('Script started — paths added [DEBUG saveRF mode]');
 
 stage = MockStageController();
 stage.connect();
+stage.moveDelay = 0.08;
 setupLog('Mock stage connected');
 
 posPtr = libpointer('singlePtr', 0);
