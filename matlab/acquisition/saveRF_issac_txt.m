@@ -46,6 +46,7 @@ end
 RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm_',lateralTag,'_',datestr(now,'dd-mmmm-yyyy'),'rotated90deg'];
 
 save_RFfilename = [RFfilename,'.txt'];
+fprintf('saveRF_issac_txt: saving RF data... (lateral=%.1fmm)\n', sweepLateralY_mm);
 fid = fopen(save_RFfilename,'w');
 fwrite(fid,RcvData{2},'double');
 fclose(fid);
