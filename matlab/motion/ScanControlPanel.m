@@ -198,7 +198,7 @@ sweepsDone = 0;
         assignin('base', 'guiLog', @addLog);
 
         % Lateral (Y) distance of this sweep's start from the scan origin,
-        % used by saveRF_issac_txt to tag the RF data filename.
+        % used by saveRF_wafer_txt to tag the RF data filename.
         assignin('base', 'sweepLateralY_mm', sweepsDone * Y_STEPS * 0.1);
 
         % Tell StageJogPanel (if open) that the stage is busy with VSX —

@@ -1,5 +1,5 @@
 % function saveRF_dbz(varargin)
-function saveRF_issac_txt(varargin)
+function saveRF_wafer_txt(varargin)
 tic
 % Copyright 2001-2017 Verasonics, Inc.  All world-wide rights and remedies under all intellectual property laws and industrial property laws are reserved.  Verasonics Registered U.S. Patent and Trademark Office.
 %
@@ -46,7 +46,7 @@ end
 RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm_',lateralTag,'_',datestr(now,'dd-mmmm-yyyy'),'rotated90deg'];
 
 save_RFfilename = [RFfilename,'.txt'];
-fprintf('saveRF_issac_txt: saving RF data... (lateral=%.1fmm)\n', sweepLateralY_mm);
+fprintf('saveRF_wafer_txt: saving RF data... (lateral=%.1fmm)\n', sweepLateralY_mm);
 fid = fopen(save_RFfilename,'w');
 fwrite(fid,RcvData{2},'double');
 fclose(fid);
@@ -67,6 +67,6 @@ if ~isempty(keepVars)
     warning(warnState);
 end
 
-fprintf('saveRF_issac_txt: saved to %s\n', filepath);
+fprintf('saveRF_wafer_txt: saved to %s\n', filepath);
 toc
 end

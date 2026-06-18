@@ -38,7 +38,7 @@
 % Copyright © 2013-2023 Verasonics, Inc.
 
 % Preserve variables set by ScanControlPanel before this script runs
-% (sweepLateralY_mm is used by saveRF_issac_txt.m to tag the RF filename).
+% (sweepLateralY_mm is used by saveRF_wafer_txt.m to tag the RF filename).
 clearvars -except sweepLateralY_mm guiLog stage
 
 %% CONNECT MOTION STAGE (DEBUG: mock stage, no hardware/DLL)
@@ -687,7 +687,7 @@ fprintf(URB_Ojt,commond_dis);% 1pann: set to nn='0' angle absolute
 
 
 %SaveCallback
-saveRF_issac_txt();
+saveRF_wafer_txt();
 %SaveCallbackTrans
 
 
