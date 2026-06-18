@@ -60,8 +60,10 @@ keepable = {'double','single','int8','int16','int32','int64', ...
             'uint8','uint16','uint32','uint64','char','logical','struct','cell'};
 keepVars = varInfo(ismember({varInfo.class}, keepable));
 if ~isempty(keepVars)
+    warnState = warning('off','all');
     evalin('base', sprintf("save('%s', '%s')", ...
         save_workspace_filename, strjoin({keepVars.name}, "', '")));
+    warning(warnState);
 end
 
 fprintf('saveRF_issac_txt: saved to %s\n', filepath);
