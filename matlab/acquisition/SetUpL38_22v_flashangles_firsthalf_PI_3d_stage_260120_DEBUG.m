@@ -127,7 +127,9 @@ Media.attenuation = -0.5;
 % ele_dis = 0.1:0.1:54;
 % lat_dis = 0:6.9:54;
 d_ele        = 0.05;   % sweep step size mm
-sweep_length = 1;      % DEBUG saveRF mode: 1 mm sweep (less data, faster)
+sweep_length = 5;      % DEBUG saveRF mode: reduced sweep (less data, faster)
+                       % NOTE: 1mm (20 frames) caused VDAS sync timeout on
+                       % MoveBatch — increase if timeout recurs.
 
 % Sweep Length Check
 assert(sweep_length > 0 && sweep_length < 80, ...
