@@ -14,8 +14,8 @@ mat_file     = 'RFbatch_5angle_PI_single_step0.05mm_x41.4mm29-May-2026rotated90d
 txt_file     = 'RFbatch_5angle_PI_single_step0.05mm_x41.4mm29-May-2026rotated90deg.txt';
 
 %% ── Parameters ───────────────────────────────────────────────────────────
-search_range = [3800, 4200];  % sample window to search for surface echo
-threshold    = 500;           % minimum envelope amplitude to count as surface
+search_range = [];    % [] = auto-detect from data; or set e.g. [3800, 4200]
+threshold    = 500;   % minimum envelope amplitude to count as surface
 buff_depth   = 16;            % samples below surface to extract
 ax_len       = 1;             % extraction window thickness (samples)
 lat_range    = [];            % [] = use all elements (set after loading data)
@@ -57,6 +57,20 @@ lat_range = lat_range(lat_range >= 1 & lat_range <= n_elem);
 
 %% ── Step 2: Find surface ─────────────────────────────────────────────────
 fprintf('\n=== Step 2: Surface detection ===\n');
+
+% Auto-detect search_range from mean envelope if not specified
+if isempty(search_range)
+    tic;
+    % Average a small subset of acquisitions (every 10th) to find peak depth
+    subset = RFdata(:, :, 1:10:end);
+    mean_env = mean(abs(hilbert(double(reshape(subset, n_samples, [])))), 2);
+    [~, peak_loc] = max(mean_env);
+    half_win = round(n_samples * 0.02);   % ±2% of depth
+    search_range = [max(1, peak_loc - half_win), min(n_samples, peak_loc + half_win)];
+    clear subset mean_env;
+    fprintf('  auto search_range:   [%d %d]  (%.2f s)\n', ...
+            search_range(1), search_range(2), toc);
+end
 
 tic;
 surface_map = find_surface_rfdata(RFdata, search_range, threshold);
