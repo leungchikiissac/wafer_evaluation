@@ -219,10 +219,25 @@ sweepsDone = 0;
 
             % VSX closed — SetUp script has finished
             updatePosition();
-            setStatus('VSX closed. Ready to reposition.', [0.2 0.5 0.2]);
-            hRepos.Enable      = 'on';
-            hFinish.Enable     = 'on';
-            hDisconnect.Enable = 'on';
+            sweepsDone = sweepsDone + 1;
+            hProgress.Text = sprintf('%d / %d', sweepsDone, TOTAL_SWEEPS);
+            addLog(sprintf('Sweep %d / %d acquired.', sweepsDone, TOTAL_SWEEPS));
+
+            if sweepsDone >= TOTAL_SWEEPS
+                % Last sweep acquired — no reposition needed
+                setStatus('All sweeps acquired! Disconnect stage when finished.', ...
+                          [0.2 0.5 0.2]);
+                hRepos.Enable      = 'off';
+                hLaunch.Enable     = 'off';
+                hFinish.Enable     = 'on';
+                hDisconnect.Enable = 'on';
+            else
+                setStatus(sprintf('Sweep %d done. Reposition for next lane.', ...
+                          sweepsDone), [0.2 0.5 0.2]);
+                hRepos.Enable      = 'on';
+                hFinish.Enable     = 'on';
+                hDisconnect.Enable = 'on';
+            end
 
         catch ex
             assignin('base', 'sweepInProgress', false);
@@ -234,42 +249,23 @@ sweepsDone = 0;
     end
 
     function onReposition()
-        if sweepsDone >= TOTAL_SWEEPS
-            setStatus('All sweeps complete. Press Reset to start over.', ...
-                      [0.2 0.5 0.2]);
-            return
-        end
-
-
         lockAll();
         setStatus('Moving stage — please wait...', [0.6 0.4 0]);
         drawnow;
 
         try
             stage = evalin('base', 'stage');
-            setStatus('Returning X (600 steps)...', [0.6 0.4 0]);
+            setStatus('Returning X and advancing Y...', [0.6 0.4 0]);
             drawnow;
             repositionProbe(stage);
-
-            sweepsDone = sweepsDone + 1;
             assignin('base', 'stage', stage);
 
             updatePosition();
-            hProgress.Text = sprintf('%d / %d', sweepsDone, TOTAL_SWEEPS);
-
-            if sweepsDone >= TOTAL_SWEEPS
-                setStatus('All sweeps done! Disconnect stage when finished.', ...
-                          [0.2 0.5 0.2]);
-                hRepos.Enable   = 'off';
-                hFinish.Enable  = 'on';
-                hDisconnect.Enable = 'on';
-            else
-                setStatus(sprintf('Lane %d done. Press Launch VSX for next lane.', ...
-                          sweepsDone), [0.2 0.5 0.2]);
-                hRepos.Enable  = 'off';
-                hLaunch.Enable = 'on';
-                hFinish.Enable = 'on';
-            end
+            setStatus(sprintf('Repositioned. Press Launch VSX for sweep %d.', ...
+                      sweepsDone + 1), [0.2 0.5 0.2]);
+            hRepos.Enable  = 'off';
+            hLaunch.Enable = 'on';
+            hFinish.Enable = 'on';
 
         catch ex
             setStatus(['Reposition failed: ' ex.message], [0.8 0 0]);
