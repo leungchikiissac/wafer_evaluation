@@ -70,22 +70,37 @@ fprintf('  Surface depth range: %d – %d samples\n', min(surface_idx), max(surf
 %% ── Step 3: Envelope C-scan from raw RF ──────────────────────────────────
 fprintf('\n=== Step 3: Envelope C-scan extraction ===\n');
 
-% Hilbert envelope of entire RFdata — heavy step
+% Only compute Hilbert in a narrow window around the surface — avoids
+% processing 12288 samples when we only need ~50 near the surface.
+surf_min  = min(surface_idx);
+surf_max  = max(surface_idx);
+pad       = buff_depth + ax_len + 32;   % extra margin either side
+win_start = max(1, surf_min - pad);
+win_end   = min(n_samples, surf_max + pad);
+fprintf('  Hilbert window: samples %d – %d (%d of %d)\n', ...
+        win_start, win_end, win_end - win_start + 1, n_samples);
+
 tic;
-RFenv = zeros(size(RFdata), 'single');
-parfor ei = 1:n_acq
-    RFenv(:,:,ei) = single(abs(hilbert(double(RFdata(:,:,ei)))));
-end
+% Extract window: [win_len × n_elem × n_acq]
+RFwindow = double(RFdata(win_start:win_end, :, :));
+win_len  = size(RFwindow, 1);
+
+% Reshape to [win_len × (n_elem*n_acq)] — one batched hilbert call
+RFcols = reshape(RFwindow, win_len, n_elem * n_acq);
+clear RFwindow;
+RFenv_cols = single(abs(hilbert(RFcols)));
+clear RFcols;
+RFenv = reshape(RFenv_cols, win_len, n_elem, n_acq);
+clear RFenv_cols;
 fprintf('  Hilbert envelope:    %.2f s\n', toc);
 
 % Extract slice just below surface for each scan position
 tic;
 cscan = zeros(n_acq, n_elem, 'single');
 for ei = 1:n_acq
-    s = surface_idx(ei);
+    s = surface_idx(ei) - win_start + 1;   % index into window
     r = s + buff_depth : s + buff_depth + ax_len;
-    % clamp to valid range
-    r = r(r >= 1 & r <= n_samples);
+    r = r(r >= 1 & r <= win_len);
     if ~isempty(r)
         cscan(ei, :) = sum(RFenv(r, :, ei), 1);
     end
