@@ -37,6 +37,37 @@ add_executable(test_vantage tests/test_vantage.cpp)
 target_link_libraries(test_vantage VantageInterface_static)
 add_test(NAME VantageTests COMMAND test_vantage)
 
+# ── Verasonics SDK example: flash_asynchronous ───────────────
+set(ACQSDK_ROOT "${CMAKE_SOURCE_DIR}/../vendor/Vantage/vsacqsdk")
+set(FLASH_ASYNC_DIR "${CMAKE_SOURCE_DIR}/../vendor/Vantage/vsacqsdk/examples/flash_asynchronous")
+if(EXISTS "${ACQSDK_ROOT}/includes/VK_AcqSdk.h")
+    add_executable(flash_asynchronous
+        "${FLASH_ASYNC_DIR}/flash_asynchronous.cpp"
+    )
+    target_include_directories(flash_asynchronous PRIVATE
+        "${ACQSDK_ROOT}/includes"
+        "${FLASH_ASYNC_DIR}"
+    )
+    target_link_directories(flash_asynchronous PRIVATE "${ACQSDK_ROOT}/libs")
+    target_link_libraries(flash_asynchronous VerasonicsAcqSDK VerasonicsAcqSDKUtil)
+
+    foreach(dep IN ITEMS
+            "${ACQSDK_ROOT}/libs/libVerasonicsAcqSDK.dll"
+            "${ACQSDK_ROOT}/libs/libVerasonicsAcqSDKUtil.dll"
+            "${ACQSDK_ROOT}/libs/libVerasonicsCommon.dll"
+            "${ACQSDK_ROOT}/libs/libVerasonicsHal.dll"
+            "${ACQSDK_ROOT}/libs/libwinpthread-1.dll"
+            "${ACQSDK_ROOT}/libs/license.enc")
+        if(EXISTS "${dep}")
+            add_custom_command(TARGET flash_asynchronous POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dep}" "$<TARGET_FILE_DIR:flash_asynchronous>")
+        endif()
+    endforeach()
+    message(STATUS "flash_asynchronous example target enabled")
+else()
+    message(STATUS "AcqSDK not found — flash_asynchronous skipped")
+endif()
+
 # ── Acquisition executables ───────────────────────────────────
 set(ACQSDK_ROOT "${CMAKE_SOURCE_DIR}/../vendor/Vantage/vsacqsdk")
 set(VANTAGE_ROOT "${CMAKE_SOURCE_DIR}/../vendor/Vantage")
@@ -44,11 +75,12 @@ if(EXISTS "${ACQSDK_ROOT}/includes/VK_AcqSdk.h")
     add_executable(simple_flash src/acquisition/simple_flash.cpp)
     target_include_directories(simple_flash PRIVATE "${ACQSDK_ROOT}/includes")
     target_link_directories(simple_flash PRIVATE "${ACQSDK_ROOT}/libs")
-    target_link_libraries(simple_flash VerasonicsAcqSDK)
+    target_link_libraries(simple_flash VerasonicsAcqSDK VerasonicsAcqSDKUtil)
     message(STATUS "simple_flash acquisition target enabled")
 
     foreach(dep IN ITEMS
             "${ACQSDK_ROOT}/libs/libVerasonicsAcqSDK.dll"
+            "${ACQSDK_ROOT}/libs/libVerasonicsAcqSDKUtil.dll"
             "${VANTAGE_ROOT}/System/libVerasonicsCommon.dll"
             "${VANTAGE_ROOT}/System/libVerasonicsHal.dll"
             "${VANTAGE_ROOT}/System/libwinpthread-1.dll"
