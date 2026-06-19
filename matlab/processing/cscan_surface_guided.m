@@ -18,7 +18,7 @@ search_range = [3800, 4200];  % sample window to search for surface echo
 threshold    = 500;           % minimum envelope amplitude to count as surface
 buff_depth   = 16;            % samples below surface to extract
 ax_len       = 1;             % extraction window thickness (samples)
-lat_range    = 25:256-24;     % lateral elements to include in C-scan display
+lat_range    = [];            % [] = use all elements (set after loading data)
 
 %% ── Step 1: Load RF data ─────────────────────────────────────────────────
 fprintf('=== Step 1: Load RF data ===\n');
@@ -46,6 +46,14 @@ clear RF_tmp;
 [n_samples, n_elem, n_acq] = size(RFdata);
 fprintf('  RF shape: %d samples x %d elements x %d acquisitions\n', ...
         n_samples, n_elem, n_acq);
+
+% Set lateral display range now that n_elem is known
+% Trim ~10% from each edge; fall back to all elements if array is small
+trim = floor(n_elem * 0.1);
+if isempty(lat_range)
+    lat_range = (1 + trim) : (n_elem - trim);
+end
+lat_range = lat_range(lat_range >= 1 & lat_range <= n_elem);
 
 %% ── Step 2: Find surface ─────────────────────────────────────────────────
 fprintf('\n=== Step 2: Surface detection ===\n');
