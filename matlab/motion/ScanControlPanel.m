@@ -22,6 +22,10 @@ if nargin > 0
     TESTING = testing;
 end
 
+% Set DEBUG_SAVERF = true to use the DEBUG SetUp script (1 mm sweep,
+% mock stage, real VDAS acquisition) without changing any GUI controls.
+DEBUG_SAVERF = false;
+
 TOTAL_SWEEPS  = 6;
 X_STEPS       = 600;   % steps to return X to start (600 x -0.1 mm = -60 mm)
 Y_STEPS       =  69;   % steps to advance to next lane (69 x 0.1 mm = 6.9 mm)
@@ -30,12 +34,12 @@ Y_STEPS       =  69;   % steps to advance to next lane (69 x 0.1 mm = 6.9 mm)
 here = fileparts(mfilename('fullpath'));
 if TESTING
     setup_script = fullfile(here, '..', 'acquisition', 'SetUpMock.m');
+elseif DEBUG_SAVERF
+    setup_script = fullfile(here, '..', 'acquisition', ...
+        'SetUpL38_22v_flashangles_firsthalf_PI_3d_stage_260120_DEBUG.m');
 else
     setup_script = fullfile(here, '..', 'acquisition', ...
         'SetUpL38_22v_flashangles_firsthalf_PI_3d_stage_260120.m');
-    setup_script_debug = fullfile(here, '..', 'acquisition', ...
-        'SetUpL38_22v_flashangles_firsthalf_PI_3d_stage_260120_DEBUG.m');
-    assert(isfile(setup_script_debug), 'DEBUG SetUp script not found: %s', setup_script_debug);
 end
 assert(isfile(setup_script), 'SetUp script not found: %s', setup_script);
 
@@ -56,13 +60,6 @@ uilabel(fig, 'Text', 'Scan Control Panel', ...
         'Position', [10 515 320 30], ...
         'FontSize', 16, 'FontWeight', 'bold', ...
         'HorizontalAlignment', 'center');
-
-% ── Debug SaveRF mode toggle ──────────────────────────────────────────────
-hDebugCheck = uicheckbox(fig, 'Text', 'Debug SaveRF mode (1mm sweep, mock stage)', ...
-        'Position', [20 495 300 22], ...
-        'FontColor', [0.8 0 0], ...
-        'Enable', TESTING == false, ...
-        'Value', false);
 
 % ── Sweep progress ────────────────────────────────────────────────────────
 uilabel(fig, 'Text', 'Sweep progress:', ...
@@ -183,15 +180,14 @@ sweepsDone = 0;
 
     function onLaunchVSX()
         lockAll();
-        if ~TESTING && hDebugCheck.Value
-            script = setup_script_debug;
+        if DEBUG_SAVERF
             addLog('--- Launch VSX pressed [DEBUG SaveRF mode] ---');
             setStatus('[DEBUG] VSX running — GUI unlocks when you close VSX.', [0.6 0.4 0]);
         else
-            script = setup_script;
             addLog('--- Launch VSX pressed ---');
             setStatus('VSX running — GUI unlocks when you close VSX.', [0.6 0.4 0]);
         end
+        script = setup_script;
         drawnow;
 
         % Write log callback into base workspace so SetUp script can call it
