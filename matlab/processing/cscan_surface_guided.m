@@ -73,7 +73,7 @@ fprintf('\n=== Step 3: Envelope C-scan extraction ===\n');
 % Hilbert envelope of entire RFdata — heavy step
 tic;
 RFenv = zeros(size(RFdata), 'single');
-for ei = 1:n_acq
+parfor ei = 1:n_acq
     RFenv(:,:,ei) = single(abs(hilbert(double(RFdata(:,:,ei)))));
 end
 fprintf('  Hilbert envelope:    %.2f s\n', toc);
