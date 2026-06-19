@@ -12,36 +12,40 @@ function surface_idx = find_surface_rfdata(RFdata, search_range, threshold)
 % Output:
 %   surface_idx  [elements × acquisitions]  surface sample index per element
 
-[n_samples, n_elem, n_acq] = size(RFdata);
+[~, n_elem, n_acq] = size(RFdata);
 row_start = search_range(1);
 row_end   = search_range(2);
 
-surface_idx = zeros(n_elem, n_acq);
+% Extract search window: [window_len × n_elem × n_acq]
+window = double(RFdata(row_start:row_end, :, :));
+window_len = row_end - row_start + 1;
 
-for ei = 1:n_acq
-    for eli = 1:n_elem
+% Reshape to [window_len × (n_elem*n_acq)] so hilbert runs on all columns
+% at once — eliminates the double for-loop
+cols   = reshape(window, window_len, n_elem * n_acq);
+env    = abs(hilbert(cols));                        % one FFT batch
 
-        % Extract RF column for this element and acquisition
-        rf_col = double(RFdata(row_start:row_end, eli, ei));
+% Peak value and location per column
+[peak_vals, peak_locs] = max(env, [], 1);           % [1 × n_elem*n_acq]
 
-        % Envelope detection via Hilbert transform
-        env = abs(hilbert(rf_col));
+% Convert back to [n_elem × n_acq]
+peak_vals = reshape(peak_vals, n_elem, n_acq);
+peak_locs = reshape(peak_locs, n_elem, n_acq);
 
-        % Find peak
-        [peak_val, peak_loc] = max(env);
+% Map local window index → absolute sample index
+surface_idx = peak_locs + row_start - 1;
 
-        if peak_val > threshold
-            % Strong echo found → surface detected
-            surface_idx(eli, ei) = peak_loc + row_start - 1;
+% Where signal is below threshold, inherit from previous element
+% (same fallback logic as before, now vectorized across acquisitions)
+fallback = round(mean(search_range));
+for eli = 1:n_elem
+    weak = peak_vals(eli, :) <= threshold;
+    if any(weak)
+        if eli == 1
+            surface_idx(eli, weak) = fallback;
         else
-            % Weak echo → inherit from previous element
-            if eli > 1
-                surface_idx(eli, ei) = surface_idx(eli-1, ei);
-            else
-                surface_idx(eli, ei) = round(mean(search_range));
-            end
+            surface_idx(eli, weak) = surface_idx(eli-1, weak);
         end
-
     end
 end
 end
