@@ -1,22 +1,16 @@
 function repositionProbe(stage)
-% repositionProbe  Move probe to start of next sweep lane.
+% repositionProbe  Move probe to start of next sweep lane (snake pattern).
 %
-%   Moves X back 60 mm (600 steps x -0.1 mm) then
-%   advances Y by 6.9 mm (69 steps x 0.1 mm).
+%   Advances Y by 6.9 mm only — no X return required because the snake
+%   pattern alternates sweep direction, so the probe is already at the
+%   correct X position (0 or 60 mm) for the next lane.
 %
 %   Called by ScanControlPanel during multi-sweep sessions.
 %   Requires an already-connected StageController object.
 
-fprintf('\nRepositioning probe...\n');
+fprintf('\nRepositioning probe (lateral step only)...\n');
 
-% Return X by 60 mm in a single move. Issuing 600 separate 0.1 mm jogs
-% back-to-back lets small per-jog shortfalls accumulate (observed ~0.8 mm
-% drift over 600 steps), so move the full distance in one command instead.
-fprintf('Returning X-axis: -60 mm\n');
-stage.moveX(-60);
-stage.printPosition();
-
-% Advance Y by -6.9 mm in a single move (same reasoning as X above).
+% Advance Y by -6.9 mm in a single move.
 fprintf('Advancing Y-axis: -6.9 mm\n');
 stage.moveY(-6.9);
 stage.printPosition();

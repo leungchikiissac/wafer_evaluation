@@ -472,6 +472,9 @@ sweepsDone = 0;
         assignin('base', 'sweepLateralY_mm', sweepsDone * Y_STEPS * 0.1);
         assignin('base', 'sweepInProgress',  true);
         assignin('base', 'autoScanMode',     autoMode);
+        % Snake pattern: +1 = forward (X 0→60mm), -1 = reverse (X 60→0mm)
+        sweepDir = 1 - 2 * mod(sweepsDone, 2);
+        assignin('base', 'sweepDir', sweepDir);
 
         script = setup_script;
         evalin('base', sprintf("run('%s')", strrep(script, '\', '/')));
