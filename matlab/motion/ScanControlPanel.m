@@ -1,11 +1,17 @@
 function fig = ScanControlPanel(testing)
 % ScanControlPanel  Multi-sweep orchestration GUI.
 %
-%   Workflow:
+%   Workflow (manual):
 %     1. Press "Launch VSX"  — runs SetUp script, opens Verasonics VSX window
 %     2. Press "Move Batch"  — in the VSX window (sweeps X 60 mm, saves RF)
 %     3. Press "Reposition"  — moves X back 60 mm + Y forward 6.9 mm
 %     4. Repeat steps 2-3 for each of the 6 sweep lanes
+%
+%   Workflow (automated):
+%     1. Press "Auto Scan"   — launches VSX for each lane automatically,
+%        runs C-scan after each SaveRF, repositions between lanes.
+%        VSX auto-starts the batch sequence; user only needs to press
+%        SaveRF then close VSX per lane. Press "Stop" to abort between lanes.
 %
 %   The stage object is shared with VSX via the base workspace ('stage').
 %
@@ -51,37 +57,52 @@ if ~isempty(old)
 end
 
 fig = uifigure('Name', 'Scan Control Panel', ...
-               'Position', [100 100 620 560], ...
+               'Position', [100 100 620 620], ...
                'Tag', 'ScanControlPanel', ...
                'Resize', 'off');
 
 % Title
 uilabel(fig, 'Text', 'Scan Control Panel', ...
-        'Position', [10 515 320 30], ...
+        'Position', [10 575 320 30], ...
         'FontSize', 16, 'FontWeight', 'bold', ...
         'HorizontalAlignment', 'center');
 
 % ── Sweep progress ────────────────────────────────────────────────────────
 uilabel(fig, 'Text', 'Sweep progress:', ...
-        'Position', [20 475 120 22], 'FontWeight', 'bold');
+        'Position', [20 535 120 22], 'FontWeight', 'bold');
 hProgress = uilabel(fig, 'Text', sprintf('0 / %d', TOTAL_SWEEPS), ...
-        'Position', [145 475 170 22], ...
+        'Position', [145 535 170 22], ...
         'FontSize', 13, 'FontColor', [0.2 0.5 0.2]);
 
 % ── Position display ──────────────────────────────────────────────────────
 uilabel(fig, 'Text', 'Stage position:', ...
-        'Position', [20 440 120 22], 'FontWeight', 'bold');
+        'Position', [20 500 120 22], 'FontWeight', 'bold');
 hPos = uilabel(fig, 'Text', 'x=-.--- y=-.--- z=-.--- mm', ...
-        'Position', [20 418 300 22], 'FontSize', 11);
+        'Position', [20 478 300 22], 'FontSize', 11);
 
 % ── Status ────────────────────────────────────────────────────────────────
 uilabel(fig, 'Text', 'Status:', ...
-        'Position', [20 385 60 22], 'FontWeight', 'bold');
+        'Position', [20 445 60 22], 'FontWeight', 'bold');
 hStatus = uilabel(fig, 'Text', 'Not started', ...
-        'Position', [85 385 235 22], 'FontColor', [0.5 0.5 0.5]);
+        'Position', [85 445 235 22], 'FontColor', [0.5 0.5 0.5]);
 
 % Divider
-uipanel(fig, 'Position', [15 375 310 2], 'BackgroundColor', [0.7 0.7 0.7]);
+uipanel(fig, 'Position', [15 435 310 2], 'BackgroundColor', [0.7 0.7 0.7]);
+
+% ── Auto Scan button ──────────────────────────────────────────────────────
+hAuto = uibutton(fig, 'Text', 'Auto Scan (all lanes)', ...
+        'Position', [20 390 218 40], ...
+        'FontSize', 13, 'FontWeight', 'bold', ...
+        'BackgroundColor', [0.45 0.1 0.65], 'FontColor', 'white', ...
+        'ButtonPushedFcn', @(~,~) onAutoScan());
+
+% ── Stop Auto Scan button ─────────────────────────────────────────────────
+hStop = uibutton(fig, 'Text', 'Stop', ...
+        'Position', [243 390 77 40], ...
+        'FontSize', 12, 'FontWeight', 'bold', ...
+        'BackgroundColor', [0.8 0.15 0.15], 'FontColor', 'white', ...
+        'Enable', 'off', ...
+        'ButtonPushedFcn', @(~,~) onStop());
 
 % ── Launch VSX button ─────────────────────────────────────────────────────
 hLaunch = uibutton(fig, 'Text', 'Launch VSX', ...
@@ -127,14 +148,14 @@ hLog = uitextarea(fig, ...
 
 % ── Stage Jog Panel (right column) ─────────────────────────────────────────
 uilabel(fig, 'Text', 'Stage Jog', ...
-        'Position', [360 515 240 30], ...
+        'Position', [360 575 240 30], ...
         'FontSize', 16, 'FontWeight', 'bold', ...
         'HorizontalAlignment', 'center');
 
 uilabel(fig, 'Text', 'Step (mm):', ...
-        'Position', [360 475 80 22], 'FontWeight', 'bold');
+        'Position', [360 535 80 22], 'FontWeight', 'bold');
 hStep = uieditfield(fig, 'numeric', ...
-        'Position', [445 475 80 22], ...
+        'Position', [445 535 80 22], ...
         'Value', 1, ...
         'Limits', [0 100], ...
         'LowerLimitInclusive', 'off', ...
@@ -187,40 +208,18 @@ sweepsDone = 0;
             addLog('--- Launch VSX pressed ---');
             setStatus('VSX running — GUI unlocks when you close VSX.', [0.6 0.4 0]);
         end
-        script = setup_script;
         drawnow;
 
-        % Write log callback into base workspace so SetUp script can call it
-        assignin('base', 'guiLog', @addLog);
-
-        % Lateral (Y) distance of this sweep's start from the scan origin,
-        % used by saveRF_wafer_txt to tag the RF data filename.
-        assignin('base', 'sweepLateralY_mm', sweepsDone * Y_STEPS * 0.1);
-
-        % Tell StageJogPanel (if open) that the stage is busy with VSX —
-        % it must not send jog commands until this is cleared.
-        assignin('base', 'sweepInProgress', true);
-
         try
-            addLog('Running SetUp script...');
-            % evalin base executes the script in base workspace — fully blocking
-            evalin('base', sprintf("run('%s')", strrep(script,'\','/')));
-            addLog('SetUp script returned.');
+            runOneSweep(false);
 
-            assignin('base', 'sweepInProgress', false);
-
-            if ~isvalid(fig)
-                return
-            end
-
-            % VSX closed — SetUp script has finished
+            if ~isvalid(fig); return; end
             updatePosition();
             sweepsDone = sweepsDone + 1;
             hProgress.Text = sprintf('%d / %d', sweepsDone, TOTAL_SWEEPS);
             addLog(sprintf('Sweep %d / %d acquired.', sweepsDone, TOTAL_SWEEPS));
 
             if sweepsDone >= TOTAL_SWEEPS
-                % Last sweep acquired — no reposition needed
                 setStatus('All sweeps acquired! Disconnect stage when finished.', ...
                           [0.2 0.5 0.2]);
                 hRepos.Enable      = 'off';
@@ -240,6 +239,8 @@ sweepsDone = 0;
             if isvalid(fig)
                 setStatus(['Launch failed: ' ex.message], [0.8 0 0]);
                 hLaunch.Enable = 'on';
+                hAuto.Enable   = 'on';
+                hFinish.Enable = 'on';
             end
         end
     end
@@ -250,28 +251,141 @@ sweepsDone = 0;
         drawnow;
 
         try
-            stage = evalin('base', 'stage');
-            setStatus('Returning X and advancing Y...', [0.6 0.4 0]);
-            drawnow;
-            repositionProbe(stage);
-            assignin('base', 'stage', stage);
-
-            updatePosition();
+            doReposition();
             setStatus(sprintf('Repositioned. Press Launch VSX for sweep %d.', ...
                       sweepsDone + 1), [0.2 0.5 0.2]);
             hRepos.Enable  = 'off';
             hLaunch.Enable = 'on';
+            hAuto.Enable   = 'on';
             hFinish.Enable = 'on';
 
         catch ex
             setStatus(['Reposition failed: ' ex.message], [0.8 0 0]);
             hRepos.Enable = 'on';
+            hAuto.Enable  = 'on';
         end
     end
 
+    function onAutoScan()
+        assignin('base', 'autoScanAbort', false);
+        lockAll();
+        hStop.Enable = 'on';
+        setStatus(sprintf('Auto Scan: lane %d/%d — launching VSX...', ...
+                  sweepsDone + 1, TOTAL_SWEEPS), [0.45 0.1 0.65]);
+        addLog('=== Auto Scan started ===');
+        drawnow;
+
+        aborted = false;
+        try
+            for lane = (sweepsDone + 1) : TOTAL_SWEEPS
+                if ~isvalid(fig); return; end
+
+                try; aborted = evalin('base', 'autoScanAbort'); catch; aborted = false; end
+                if aborted; break; end
+
+                addLog(sprintf('--- Auto Scan: lane %d/%d ---', lane, TOTAL_SWEEPS));
+                setStatus(sprintf('Auto Scan: lane %d/%d — VSX running...', ...
+                          lane, TOTAL_SWEEPS), [0.45 0.1 0.65]);
+                drawnow;
+
+                % Launch VSX (blocking — returns after user closes VSX)
+                runOneSweep(true);
+
+                if ~isvalid(fig); return; end
+                updatePosition();
+                sweepsDone = sweepsDone + 1;
+                hProgress.Text = sprintf('%d / %d', sweepsDone, TOTAL_SWEEPS);
+                addLog(sprintf('Lane %d acquired.', sweepsDone));
+
+                % C-scan if RF was saved during this VSX session
+                try
+                    lastRF = evalin('base', 'lastRFfilename');
+                catch
+                    lastRF = '';
+                end
+                if ~isempty(lastRF)
+                    [fp, fn, ~] = fileparts(lastRF);
+                    setStatus(sprintf('Auto Scan: lane %d/%d — C-scan...', ...
+                              lane, TOTAL_SWEEPS), [0.45 0.1 0.65]);
+                    addLog(sprintf('C-scan: %s', fn));
+                    drawnow;
+                    try
+                        cscan_surface_guided_fn(fp, [fn '_size.mat'], [fn '.txt']);
+                        addLog('C-scan done.');
+                    catch cex
+                        addLog(['C-scan failed: ' cex.message]);
+                    end
+                else
+                    addLog('No RF saved this session — skipping C-scan.');
+                end
+
+                try; aborted = evalin('base', 'autoScanAbort'); catch; aborted = false; end
+                if aborted; break; end
+
+                % Reposition unless this was the last lane
+                if sweepsDone < TOTAL_SWEEPS
+                    setStatus(sprintf('Auto Scan: lane %d/%d — repositioning...', ...
+                              lane, TOTAL_SWEEPS), [0.45 0.1 0.65]);
+                    addLog('Repositioning for next lane...');
+                    drawnow;
+                    try
+                        doReposition();
+                        addLog('Repositioned.');
+                    catch rex
+                        setStatus(['Reposition failed: ' rex.message], [0.8 0 0]);
+                        addLog(['Reposition failed: ' rex.message]);
+                        aborted = true;
+                        break;
+                    end
+                end
+            end  % for lane
+
+        catch ex
+            assignin('base', 'sweepInProgress', false);
+            if isvalid(fig)
+                setStatus(['Auto Scan failed: ' ex.message], [0.8 0 0]);
+                addLog(['Auto Scan error: ' ex.message]);
+            end
+            hStop.Enable   = 'off';
+            hAuto.Enable   = 'on';
+            hFinish.Enable = 'on';
+            return;
+        end
+
+        if ~isvalid(fig); return; end
+
+        hStop.Enable   = 'off';
+        hAuto.Enable   = 'on';
+        hFinish.Enable = 'on';
+        assignin('base', 'sweepInProgress', false);
+
+        if aborted
+            setStatus(sprintf('Auto Scan stopped at lane %d/%d. ' + ...
+                      'Reposition or Launch manually to continue.', ...
+                      sweepsDone, TOTAL_SWEEPS), [0.8 0.4 0]);
+            addLog('=== Auto Scan stopped by user ===');
+            if sweepsDone < TOTAL_SWEEPS
+                hRepos.Enable  = 'on';
+                hLaunch.Enable = 'on';
+            else
+                hDisconnect.Enable = 'on';
+            end
+        elseif sweepsDone >= TOTAL_SWEEPS
+            setStatus('All sweeps acquired! Disconnect stage when finished.', [0.2 0.5 0.2]);
+            addLog('=== Auto Scan complete ===');
+            hRepos.Enable      = 'off';
+            hLaunch.Enable     = 'off';
+            hDisconnect.Enable = 'on';
+        end
+    end
+
+    function onStop()
+        assignin('base', 'autoScanAbort', true);
+        hStop.Enable = 'off';
+        addLog('Stop requested — aborting after current VSX session closes.');
+    end
+
     function onReset()
-        % Re-enable Launch VSX without disturbing the sweep count —
-        % "Reset" here just unlocks the GUI, it does not start a new session.
         if sweepsDone >= TOTAL_SWEEPS
             sweepsDone     = 0;
             hProgress.Text = sprintf('0 / %d', TOTAL_SWEEPS);
@@ -279,8 +393,9 @@ sweepsDone = 0;
             hRepos.Enable  = 'off';
         end
         hFinish.Enable = 'off';
-        hLaunch.Enable = 'on';   % allow re-launching VSX
-        setStatus('Ready. Press Launch VSX to continue.', ...
+        hLaunch.Enable = 'on';
+        hAuto.Enable   = 'on';
+        setStatus('Ready. Press Launch VSX or Auto Scan to continue.', ...
                   [0.4 0.4 0.4]);
     end
 
@@ -342,6 +457,38 @@ sweepsDone = 0;
         [jogButtons.Enable] = deal('on');
     end
 
+    % ── Shared helpers used by both manual buttons and onAutoScan ─────────
+
+    function runOneSweep(autoMode)
+        % Execute the SetUp script (blocking until VSX closes).
+        % autoMode=true sets autoScanMode in base so VSX pre-starts the batch.
+        if DEBUG_SAVERF
+            addLog('Running SetUp script [DEBUG SaveRF mode]...');
+        else
+            addLog('Running SetUp script...');
+        end
+
+        assignin('base', 'guiLog',           @addLog);
+        assignin('base', 'sweepLateralY_mm', sweepsDone * Y_STEPS * 0.1);
+        assignin('base', 'sweepInProgress',  true);
+        assignin('base', 'autoScanMode',     autoMode);
+
+        script = setup_script;
+        evalin('base', sprintf("run('%s')", strrep(script, '\', '/')));
+        addLog('SetUp script returned.');
+        assignin('base', 'sweepInProgress', false);
+    end
+
+    function doReposition()
+        % Move stage: return X + advance Y to next lane.
+        setStatus('Returning X and advancing Y...', [0.6 0.4 0]);
+        drawnow;
+        stage = evalin('base', 'stage');
+        repositionProbe(stage);
+        assignin('base', 'stage', stage);
+        updatePosition();
+    end
+
     function stage = getOrConnectStage()
         if evalin('base', 'exist(''stage'',''var'')')
             stage = evalin('base', 'stage');
@@ -356,18 +503,19 @@ sweepsDone = 0;
         end
     end
 
+    % ── GUI helpers ───────────────────────────────────────────────────────
+
+    function lockAll()
+        hLaunch.Enable     = 'off';
+        hRepos.Enable      = 'off';
+        hFinish.Enable     = 'off';
+        hDisconnect.Enable = 'off';
+        hAuto.Enable       = 'off';
+    end
+
     function setJogStatus(msg, color)
         hJogStatus.Text      = msg;
         hJogStatus.FontColor = color;
-    end
-
-    % ── Helpers ───────────────────────────────────────────────────────────
-
-    function lockAll()
-        hLaunch.Enable    = 'off';
-        hRepos.Enable     = 'off';
-        hFinish.Enable    = 'off';
-        hDisconnect.Enable = 'off';
     end
 
     function setStatus(msg, color)
@@ -389,7 +537,7 @@ sweepsDone = 0;
     function addLog(msg)
         timestamp = datestr(now, 'HH:MM:SS');
         line = sprintf('[%s] %s', timestamp, msg);
-        fprintf('%s\n', line);  % also print to Command Window
+        fprintf('%s\n', line);
         current = hLog.Value;
         if isempty(current) || (numel(current)==1 && isempty(current{1}))
             hLog.Value = {line};
@@ -402,7 +550,6 @@ sweepsDone = 0;
             [jogButtons.Enable] = deal('on');
             setJogStatus('Jog ready.', [0.2 0.5 0.2]);
         end
-        % Auto-scroll to bottom
         scroll(hLog, 'bottom');
         drawnow;
     end

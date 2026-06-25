@@ -39,7 +39,7 @@
 
 % Preserve variables set by ScanControlPanel before this script runs
 % (sweepLateralY_mm is used by saveRF_wafer_txt.m to tag the RF filename).
-clearvars -except sweepLateralY_mm guiLog stage
+clearvars -except sweepLateralY_mm guiLog stage autoScanMode
 
 %% CONNECT MOTION STAGE
 addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matlab\')
@@ -603,6 +603,12 @@ setupLog(sprintf('cwd: %s  VSX.m found: %d', pwd, isfile(fullfile(vantage_root,'
 % Save sequence to MatFiles in the Vantage root (VSX looks here)
 if ~isfolder('MatFiles'), [~,~] = mkdir('MatFiles'); end
 setupLog('Saving .mat file...');
+% Auto Scan: pre-set startEvent so VSX begins the batch sequence immediately
+% without the user needing to press "Move Batch" in the VSX GUI.
+if exist('autoScanMode', 'var') && autoScanMode
+    Resource.Parameters.startEvent = nstart_move;
+    setupLog('autoScanMode: pre-starting batch sequence.');
+end
 % Exclude guiLog: it's a handle to a nested function inside
 % ScanControlPanel, so saving it captures the whole GUI figure in this
 % .mat file — when VSX loads it back, that re-creates a frozen "ghost"
