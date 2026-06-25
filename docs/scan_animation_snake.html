@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wafer Scan — Snake Pattern</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #12141a;
+    color: #dde;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 1.1em;
+    font-weight: 500;
+    color: #aac;
+    margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .subtitle {
+    font-size: 0.82em;
+    color: #556;
+    margin-bottom: 14px;
+    font-family: monospace;
+  }
+  canvas {
+    background: #0c0e14;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    display: block;
+  }
+  .controls {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button {
+    padding: 7px 22px;
+    border-radius: 5px;
+    border: 1px solid #3a3d50;
+    background: #1e2132;
+    color: #ccd;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.15s;
+  }
+  button:hover { background: #2a2e48; }
+  .speed-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85em;
+    color: #889;
+  }
+  input[type=range] { width: 90px; accent-color: #6688cc; }
+  #status {
+    font-size: 0.82em;
+    color: #7a9;
+    min-width: 300px;
+    text-align: center;
+    font-family: monospace;
+  }
+</style>
+</head>
+<body>
+<h1>Wafer Scan — Snake (Boustrophedon) Pattern</h1>
+<div class="subtitle">Reposition = lateral step only (6.9 mm)  ·  alternating sweep direction per lane</div>
+<canvas id="c" width="800" height="580"></canvas>
+<div class="controls">
+  <button id="btnPlay">&#9654;&nbsp;Play</button>
+  <button id="btnReset">&#8635;&nbsp;Reset</button>
+  <div class="speed-wrap">
+    Speed:
+    <input type="range" id="spd" min="0.5" max="10" step="0.5" value="3">
+    <span id="spdVal">3×</span>
+  </div>
+  <div id="status">Press Play to start</div>
+</div>
+
+<script>
+// ── Scan parameters ──────────────────────────────────────────────────────
+const N     = 6;       // lanes
+const SX    = 60;      // sweep mm  (vertical: top → bottom)
+const DY    = 6.9;     // lane pitch mm  (horizontal: left → right in probe space)
+const STEPY = 0.05;    // sweep step size mm
+const TOT_Y = N * DY;  // 41.4 mm — total lateral coverage
+
+// ── Layout ───────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const ML = 72, MR = 50, MT = 72, MB = 62;
+const PW = W - ML - MR;
+const PH = H - MT - MB;
+
+// Sweep (0→SX mm) → canvas Y (top→bottom)
+// Lateral (0→TOT_Y mm) → canvas X (Lane 1 rightmost)
+const scSwp = PH / SX;
+const scLat = PW / TOT_Y;
+function cS(s) { return MT + s * scSwp; }
+function cL(l) { return ML + PW - l * scLat; }
+
+// ── Lane colours ─────────────────────────────────────────────────────────
+const COLORS = ['#4fc3f7','#26c6da','#26a69a','#66bb6a','#d4e157','#ffca28'];
+
+// ── State ────────────────────────────────────────────────────────────────
+let S = null;
+
+function initState() {
+  S = {
+    lane:  0,
+    phase: 'sweep',    // 'sweep' | 'adv_y'
+    t:     0,
+    px:    0,          // sweep position mm (0→SX or SX→0 depending on dir)
+    py:    0,          // lateral mm
+    dir:   1,          // +1 = forward (0→SX), -1 = reverse (SX→0)
+    done:  [],
+    running: false,
+    finished: false,
+    lastTs: null,
+  };
+}
+initState();
+
+// ── Speed ────────────────────────────────────────────────────────────────
+let SPEED = 3;
+const DUR_SWEEP = 5.0;
+const DUR_ADVY  = 0.3;   // only 6.9 mm lateral step — much faster than raster
+
+// ── Draw ─────────────────────────────────────────────────────────────────
+function drawBg() {
+  ctx.fillStyle = '#0c0e14';
+  ctx.fillRect(0, 0, W, H);
+
+  // Vertical lane-boundary lines
+  for (let k = 0; k <= N; k++) {
+    ctx.strokeStyle = '#1a1e28'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cL(k * DY), MT); ctx.lineTo(cL(k * DY), MT + PH); ctx.stroke();
+  }
+
+  // Horizontal sweep-depth grid lines + left-axis tick labels
+  for (let s = 0; s <= SX; s += 10) {
+    ctx.strokeStyle = '#1a1e28'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(ML, cS(s)); ctx.lineTo(ML + PW, cS(s)); ctx.stroke();
+    ctx.fillStyle = '#4a5060'; ctx.font = '11px monospace'; ctx.textAlign = 'right';
+    ctx.fillText(s + ' mm', ML - 8, cS(s) + 4);
+  }
+
+  // Border
+  ctx.strokeStyle = '#252830'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(ML, MT, PW, PH);
+
+  // Axes
+  ctx.strokeStyle = '#383c50'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(ML, MT - 8); ctx.lineTo(ML, MT + PH + 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ML - 8, MT); ctx.lineTo(ML + PW + 8, MT); ctx.stroke();
+
+  // Sweep axis label (left, rotated)
+  ctx.save();
+  ctx.translate(13, MT + PH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#778'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Sweep depth (mm)', 0, 0);
+  ctx.restore();
+
+  // Lateral axis label (bottom)
+  ctx.fillStyle = '#778'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Lateral  —  lane direction (mm)', ML + PW / 2, H - 10);
+
+  // Lane column labels at top — show sweep direction arrow per lane
+  for (let k = 0; k < N; k++) {
+    const xMid = cL(k * DY + DY / 2);
+    const fwd  = (k % 2 === 0);   // lane 1,3,5 forward; 2,4,6 reverse
+    ctx.fillStyle = COLORS[k]; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Lane ' + (k + 1), xMid, MT - 32);
+    ctx.fillStyle = '#445'; ctx.font = '10px monospace';
+    ctx.fillText('Y=' + (k * DY).toFixed(1) + ' mm', xMid, MT - 20);
+    // Small direction arrow
+    ctx.fillStyle = COLORS[k] + 'aa';
+    ctx.font = '11px monospace';
+    ctx.fillText(fwd ? '↓' : '↑', xMid, MT - 6);
+  }
+
+  // Title / params
+  ctx.fillStyle = '#99aabb'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('6-Lane Snake Scan', ML, 24);
+  ctx.fillStyle = '#445566'; ctx.font = '11px monospace'; ctx.textAlign = 'right';
+  ctx.fillText(`${SX} mm sweep  ·  ${STEPY} mm step  ·  ${DY} mm pitch  ·  reposition = ${DY} mm only`, W - MR, 24);
+
+  // Dimension arrows
+  drawDimArrow(ML - 38, cS(0), ML - 38, cS(SX), SX + ' mm', '#334455', true);
+  drawDimArrow(cL(TOT_Y), MT - 52, cL(0), MT - 52, TOT_Y.toFixed(1) + ' mm', '#334455', false);
+}
+
+function drawDimArrow(x1, y1, x2, y2, label, color, vertical = false) {
+  ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  if (!vertical) {
+    arrowHead(x1, y1, -1, 0, color);
+    arrowHead(x2, y2,  1, 0, color);
+    ctx.fillStyle = '#556'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, (x1 + x2) / 2, y1 - 5);
+  } else {
+    arrowHead(x1, y1,  0, -1, color);
+    arrowHead(x2, y2,  0,  1, color);
+    ctx.save();
+    ctx.translate(x1 + 14, (y1 + y2) / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillStyle = '#556'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  }
+}
+
+function arrowHead(x, y, dx, dy, color) {
+  const L = 6, W2 = 3;
+  const nx = -dy, ny = dx;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x + dx * L, y + dy * L);
+  ctx.lineTo(x + nx * W2, y + ny * W2);
+  ctx.lineTo(x - nx * W2, y - ny * W2);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawDone() {
+  for (const ln of S.done) {
+    const xL = cL(ln.y);
+    ctx.strokeStyle = ln.color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(xL, cS(0)); ctx.lineTo(xL, cS(SX)); ctx.stroke();
+    dot(xL, ln.dir === 1 ? cS(0)  : cS(SX), 4.5, ln.color);   // start dot
+    dot(xL, ln.dir === 1 ? cS(SX) : cS(0),  4.5, '#fff');      // end dot (white = handoff)
+  }
+}
+
+function drawSweepTrail() {
+  if (S.phase !== 'sweep' || S.finished) return;
+  const col        = COLORS[S.lane];
+  const xL         = cL(S.py);
+  const trailStart = S.dir === 1 ? cS(0) : cS(SX);
+  const trailEnd   = cS(S.px);
+  ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.globalAlpha = 0.6;
+  ctx.beginPath(); ctx.moveTo(xL, trailStart); ctx.lineTo(xL, trailEnd); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawReposition() {
+  if (S.phase !== 'adv_y') return;
+  // Probe has finished sweep; moving laterally at fixed sweep depth
+  const sweepEnd = S.dir === 1 ? cS(SX) : cS(0);
+  const xFrom    = cL(S.lane * DY);
+  const xTo      = cL(S.py);
+  ctx.strokeStyle = '#3a4050'; ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.moveTo(xFrom, sweepEnd); ctx.lineTo(xTo, sweepEnd); ctx.stroke();
+  ctx.setLineDash([]);
+  arrowHead(xTo, sweepEnd, -1, 0, '#3a4050');
+}
+
+function drawProbe() {
+  const cx = cL(S.py);
+  const cy = cS(S.px);
+  const color = S.finished ? '#66dd77' : '#ff5020';
+  const glow  = S.finished ? '#66dd7755' : '#ff502055';
+
+  // Array-span bracket: horizontal, el.1 at probe, el.128 leftward (6.9 mm)
+  if (!S.finished && S.phase === 'sweep') {
+    const bY     = cy + 16;
+    const xEl1   = cL(S.py);
+    const xEl128 = cL(S.py + DY);
+    const col    = COLORS[S.lane];
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(xEl1, bY); ctx.lineTo(xEl128, bY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xEl1,   bY - 3); ctx.lineTo(xEl1,   bY + 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xEl128, bY - 3); ctx.lineTo(xEl128, bY + 3); ctx.stroke();
+    ctx.fillStyle = col; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('el.1',   xEl1,   bY + 13);
+    ctx.fillText('el.128', xEl128, bY + 13);
+    ctx.restore();
+  }
+
+  // Glow halo
+  const g = ctx.createRadialGradient(cx, cy, 3, cx, cy, 18);
+  g.addColorStop(0, glow); g.addColorStop(1, '#00000000');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(cx, cy, 18, 0, 2 * Math.PI); ctx.fill();
+
+  // Dot
+  ctx.fillStyle = color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(cx, cy, 7, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+
+  if (S.finished) {
+    ctx.fillStyle = '#66dd77'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('✓  Scan complete', ML + PW / 2, MT + PH / 2);
+  }
+}
+
+function dot(x, y, r, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill();
+}
+
+function drawScannedArea() {
+  for (const ln of S.done) {
+    const k = Math.round(ln.y / DY);
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle   = ln.color;
+    ctx.fillRect(cL((k + 1) * DY), cS(0), cL(k * DY) - cL((k + 1) * DY), PH);
+    ctx.globalAlpha = 1;
+  }
+  if (S.phase === 'sweep' && !S.finished && S.px > 0) {
+    const k      = S.lane;
+    const sweepY = S.dir === 1 ? cS(S.px) - cS(0) : cS(SX) - cS(S.px);
+    const topY   = S.dir === 1 ? cS(0) : cS(S.px);
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle   = COLORS[k];
+    ctx.fillRect(cL((k + 1) * DY), topY, cL(k * DY) - cL((k + 1) * DY), sweepY);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function draw() {
+  drawBg();
+  drawScannedArea();
+  drawDone();
+  drawReposition();
+  drawSweepTrail();
+  drawProbe();
+}
+
+// ── Animation step ───────────────────────────────────────────────────────
+function tick(ts) {
+  if (!S.running) return;
+  if (S.lastTs === null) S.lastTs = ts;
+  const dt = Math.min((ts - S.lastTs) / 1000, 0.1) * SPEED;
+  S.lastTs = ts;
+
+  const lane = S.lane;
+  const y0   = lane * DY;
+
+  if (S.phase === 'sweep') {
+    S.t  += dt / DUR_SWEEP;
+    const tc = Math.min(1, S.t);
+    S.px  = S.dir === 1 ? tc * SX : SX * (1 - tc);
+    S.py  = y0;
+    const dirLabel = S.dir === 1 ? '↓' : '↑';
+    status(`Lane ${lane+1}/${N}  ${dirLabel}  sweeping  [ ${S.px.toFixed(1)} / ${SX} mm ]`);
+
+    if (S.t >= 1) {
+      S.done.push({ y: y0, color: COLORS[lane], dir: S.dir });
+      S.t = 0;
+      if (lane >= N - 1) {
+        S.finished = true; S.running = false;
+        S.px = S.dir === 1 ? SX : 0;
+        status(`✓  All ${N} lanes complete  —  ${SX} × ${TOT_Y.toFixed(1)} mm scanned`);
+        document.getElementById('btnPlay').textContent = '▶ Replay';
+        draw(); return;
+      }
+      S.phase = 'adv_y';
+    }
+
+  } else if (S.phase === 'adv_y') {
+    S.t  += dt / DUR_ADVY;
+    const tc = Math.min(1, S.t);
+    // px stays at sweep end during lateral advance
+    S.px  = S.dir === 1 ? SX : 0;
+    S.py  = y0 + tc * DY;
+    status(`Repositioning  —  lateral step  [ +${(S.py - y0).toFixed(2)} / ${DY} mm ]`);
+
+    if (S.t >= 1) {
+      S.t   = 0;
+      S.py  = (lane + 1) * DY;
+      S.dir = -S.dir;   // flip sweep direction for next lane
+      S.lane++;
+      S.phase = 'sweep';
+    }
+  }
+
+  draw();
+  requestAnimationFrame(tick);
+}
+
+function status(msg) { document.getElementById('status').textContent = msg; }
+
+// ── Controls ─────────────────────────────────────────────────────────────
+document.getElementById('btnPlay').addEventListener('click', () => {
+  if (S.finished) { initState(); draw(); document.getElementById('btnPlay').textContent = '⏸ Pause'; S.running = true; S.lastTs = null; requestAnimationFrame(tick); return; }
+  S.running = !S.running;
+  document.getElementById('btnPlay').textContent = S.running ? '⏸ Pause' : '▶ Play';
+  if (S.running) { S.lastTs = null; requestAnimationFrame(tick); }
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  initState(); draw(); status('Press Play to start');
+  document.getElementById('btnPlay').textContent = '▶ Play';
+});
+
+const spdInput = document.getElementById('spd');
+spdInput.addEventListener('input', () => {
+  SPEED = parseFloat(spdInput.value);
+  document.getElementById('spdVal').textContent = SPEED + '×';
+});
+
+// Initial render
+draw();
+</script>
+</body>
+</html>
