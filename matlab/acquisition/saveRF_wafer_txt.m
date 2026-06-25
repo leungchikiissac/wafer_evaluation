@@ -39,11 +39,21 @@ catch
 end
 lateralTag = sprintf('%.1fmm', sweepLateralY_mm);
 
+try
+    sweepDir = evalin('base', 'sweepDir');
+catch
+    sweepDir = 1;
+end
+dirTag = 'fwd';
+if sweepDir < 0
+    dirTag = 'rev';
+end
+
 filepath = ['E:\issac\chip_point_simu_txt_save',datestr(now,'dd-mmmm-yyyy'),'\'];
 if ~isfolder(filepath)
     mkdir(filepath);
 end
-RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm_',lateralTag,'_',datestr(now,'dd-mmmm-yyyy'),'rotated90deg'];
+RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm_',lateralTag,'_',dirTag,'_',datestr(now,'dd-mmmm-yyyy'),'rotated90deg'];
 
 % Expose the base filename so Auto Scan can find the saved files for C-scan.
 assignin('base', 'lastRFfilename', RFfilename);

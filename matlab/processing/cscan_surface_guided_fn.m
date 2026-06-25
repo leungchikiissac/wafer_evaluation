@@ -54,6 +54,12 @@ RFdata = reshape(RF_tmp, rf_size);
 fprintf('  reshape:         %.2f s  (size %s)\n', toc, mat2str(size(RFdata)));
 clear RF_tmp;
 
+% Reverse lanes are acquired 60→0mm; flip scan-position axis to restore 0→60mm order
+if contains(txt_file, '_rev_')
+    RFdata = flip(RFdata, 3);
+    fprintf('  _rev lane detected: flipped scan-position axis to 0→60mm order\n');
+end
+
 [n_samples, n_elem, n_acq] = size(RFdata);
 fprintf('  RF shape: %d samples x %d elements x %d acquisitions\n', ...
         n_samples, n_elem, n_acq);

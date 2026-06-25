@@ -9,7 +9,7 @@
 
 % Preserve variables set by ScanControlPanel before this script runs.
 % autoScanMode is set by onAutoScan; sweepLateralY_mm/guiLog/stage by all callers.
-clearvars -except sweepLateralY_mm guiLog stage autoScanMode
+clearvars -except sweepLateralY_mm guiLog stage autoScanMode sweepDir
 
 if exist('guiLog', 'var')
     guiLog('SetUpMock: starting (no hardware)...');
