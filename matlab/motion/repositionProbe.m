@@ -1,19 +1,26 @@
-function repositionProbe(stage)
-% repositionProbe  Move probe to start of next sweep lane (snake pattern).
+function repositionProbe(stage, snakeMode)
+% repositionProbe  Move probe to start of next sweep lane.
 %
-%   Advances Y by 6.9 mm only — no X return required because the snake
-%   pattern alternates sweep direction, so the probe is already at the
-%   correct X position (0 or 60 mm) for the next lane.
+%   repositionProbe(stage)            — raster: return X to 0, then advance Y
+%   repositionProbe(stage, snakeMode) — if snakeMode=true, Y step only
 %
 %   Called by ScanControlPanel during multi-sweep sessions.
-%   Requires an already-connected StageController object.
 
-fprintf('\nRepositioning probe (lateral step only)...\n');
+if nargin < 2; snakeMode = false; end
 
-% Advance Y by -6.9 mm in a single move.
-fprintf('Advancing Y-axis: -6.9 mm\n');
-stage.moveY(-6.9);
+fprintf('\nRepositioning probe...\n');
+
+if snakeMode
+    % Snake pattern: probe is already at correct X end; advance Y only.
+    fprintf('Snake mode: advancing Y-axis: -6.9 mm\n');
+    stage.moveY(-6.9);
+else
+    % Raster pattern: return X to 0, then advance Y.
+    fprintf('Raster mode: returning X by -60 mm, then advancing Y: -6.9 mm\n');
+    stage.moveX(-60);
+    stage.moveY(-6.9);
+end
+
 stage.printPosition();
-
 fprintf('Reposition complete.\n');
 end
