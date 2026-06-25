@@ -111,8 +111,9 @@ set(gca, 'YDir', 'normal');
 hold on;
 for k = 1:N_LANES - 1
     xb = k * DY;
-    xline(xb, '--', sprintf('L%d|L%d', k, k+1), ...
-          'Color', [0.9 0.4 0.1], 'Alpha', 0.6, 'LabelColor', [0.9 0.4 0.1]);
+    xline(xb, '--', 'Color', [0.9 0.4 0.1], 'Alpha', 0.6);
+    text(xb + 0.15, SX * 0.02, sprintf('L%d|L%d', k, k+1), ...
+         'Color', [0.9 0.4 0.1], 'FontSize', 8, 'VerticalAlignment', 'bottom');
 end
 hold off;
 
@@ -131,8 +132,9 @@ set(gca, 'YDir', 'normal');
 hold on;
 for k = 1:N_LANES - 1
     xb = k * DY;
-    xline(xb, '--', sprintf('L%d|L%d', k, k+1), ...
-          'Color', [0.9 0.4 0.1], 'Alpha', 0.6, 'LabelColor', [0.9 0.4 0.1]);
+    xline(xb, '--', 'Color', [0.9 0.4 0.1], 'Alpha', 0.6);
+    text(xb + 0.15, SX * 0.02, sprintf('L%d|L%d', k, k+1), ...
+         'Color', [0.9 0.4 0.1], 'FontSize', 8, 'VerticalAlignment', 'bottom');
 end
 hold off;
 
