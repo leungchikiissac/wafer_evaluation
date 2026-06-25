@@ -13,7 +13,7 @@ function [cscan, surface_map] = cscan_surface_guided_fn(file_path, mat_file, txt
 %       .threshold     minimum envelope amplitude for surface detection (default 500)
 %       .buff_depth    samples below surface to skip before extraction (default 16)
 %       .ax_len        extraction window thickness in samples (default 1)
-%       .lat_range     element indices to include; [] = all elements
+%       .lat_range     element indices to include; [] = auto-trim 10% edges
 %
 %   Outputs:
 %     cscan       [n_acq × n_elem] single — envelope amplitude C-scan
@@ -33,7 +33,7 @@ ax_len       = opts.ax_len;
 lat_range    = opts.lat_range;
 
 %% Step 1: Load RF data
-fprintf('  load _size.mat...\n');
+fprintf('=== Step 1: Load RF data ===\n');
 tic;
 size_path = fullfile(file_path, mat_file);
 load(size_path, 'rf_size');
@@ -59,13 +59,14 @@ fprintf('  RF shape: %d samples x %d elements x %d acquisitions\n', ...
         n_samples, n_elem, n_acq);
 
 % Resolve lat_range
+trim = floor(n_elem * 0.1);
 if isempty(lat_range)
-    trim      = floor(n_elem * 0.1);
     lat_range = (1 + trim) : (n_elem - trim);
 end
 lat_range = lat_range(lat_range >= 1 & lat_range <= n_elem);
 
 %% Step 2: Surface detection
+fprintf('\n=== Step 2: Surface detection ===\n');
 if isempty(search_range)
     tic;
     mean_env = mean(abs(hilbert(double(reshape(RFdata, n_samples, [])))), 2);
@@ -85,6 +86,7 @@ surface_idx = round(mean(surface_map, 1));   % [1 x n_acq]
 fprintf('  Surface depth range: %d – %d samples\n', min(surface_idx), max(surface_idx));
 
 %% Step 3: Windowed Hilbert envelope
+fprintf('\n=== Step 3: Envelope C-scan extraction ===\n');
 surf_min  = min(surface_idx);
 surf_max  = max(surface_idx);
 pad       = buff_depth + ax_len + 32;

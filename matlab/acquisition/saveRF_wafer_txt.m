@@ -45,6 +45,9 @@ if ~isfolder(filepath)
 end
 RFfilename = [filepath,'RFbatch_5angle_PI_single_step0.05mm_x41.4mm_',lateralTag,'_',datestr(now,'dd-mmmm-yyyy'),'rotated90deg'];
 
+% Expose the base filename so Auto Scan can find the saved files for C-scan.
+assignin('base', 'lastRFfilename', RFfilename);
+
 save_RFfilename = [RFfilename,'.txt'];
 fprintf('saveRF_wafer_txt: saving RF data... (lateral=%.1fmm)\n', sweepLateralY_mm);
 fid = fopen(save_RFfilename,'w');
