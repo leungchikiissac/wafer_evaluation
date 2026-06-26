@@ -5,13 +5,19 @@
 
 CHECKPOINT_INTERVAL = 10;  % Save checkpoint every N ei iterations
 
+% Paths (modify these as needed)
+WORKSPACE_FILE = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\matlab_workspace.mat';
+DATA_DIR = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026';
+CHECKPOINT_BASE = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\checkpoints';
+OUTPUT_DIR = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\beamform';
+
 %% Setup & Resume
 
 clearvars
-addpath('E:\dbz\chip_scan\');
-load E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\matlab_workspace.mat
+addpath(fileparts(DATA_DIR));
+load(WORKSPACE_FILE);
 
-checkpoint_base = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\checkpoints';
+checkpoint_base = CHECKPOINT_BASE;
 if ~exist(checkpoint_base, 'dir')
     mkdir(checkpoint_base);
 end
@@ -87,11 +93,11 @@ for ai = 1:1
         fprintf('\n=== Processing xi=%d (xloc=%.1f) ===\n', xi, xloc(xi));
         tic
 
-        filename_read = ['E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026' ...
-            '\RFbatch_5angle_PI_single_step0.05mm_x',num2str(xloc(xi)),'mm15-May-2026.txt'];
+        filename_read = fullfile(DATA_DIR, ...
+            ['RFbatch_5angle_PI_single_step0.05mm_x',num2str(xloc(xi)),'mm15-May-2026.txt']);
 
-        filename_size = ['E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026' ...
-            '\RFbatch_5angle_PI_single_step0.05mm_x',num2str(xloc(xi)),'mm15-May-2026_size.mat'];
+        filename_size = fullfile(DATA_DIR, ...
+            ['RFbatch_5angle_PI_single_step0.05mm_x',num2str(xloc(xi)),'mm15-May-2026_size.mat']);
 
         load(filename_size);
         RF_Dim = rf_size;
@@ -158,8 +164,8 @@ for ai = 1:1
         end
 
         % Save final .mat for this xi position
-        save_name = ['E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\beamform'...
-            '\RFBFbatch_multi_fgcf_nsi_single_step0.05mm_x',num2str(xloc(xi)),'mm_angle',num2str(ai),'_0619_dc_both_ele_1_745_newinterp_lat2ax1_tukey.mat'];
+        save_name = fullfile(OUTPUT_DIR, ...
+            ['RFBFbatch_multi_fgcf_nsi_single_step0.05mm_x',num2str(xloc(xi)),'mm_angle',num2str(ai),'_0619_dc_both_ele_1_745_newinterp_lat2ax1_tukey.mat']);
 
         save(save_name, "ps_data_ds", "zmlbf_ds", "dcrbf_ds", "dclbf_ds", ...
             'fcf_ds', 'cf_ds', 'gcf_ds', "fgcf_ds", 'downsample', 'dc', ...
