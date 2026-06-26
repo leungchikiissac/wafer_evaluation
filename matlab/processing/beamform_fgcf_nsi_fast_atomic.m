@@ -6,6 +6,7 @@ clearvars
 %% Configuration
 
 CHECKPOINT_INTERVAL = 10;  % Save checkpoint every N ei iterations
+REPORT_MULTIPLE = 2;
 
 % Paths (modify these as needed)
 WORKSPACE_FILE   = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\matlab_workspace.mat';
@@ -120,7 +121,7 @@ for ai = 1:1
         % Inner loop over elements
         for ei = (last_ei + 1):1200
 
-            if mod(ei, 100) == 0
+            if mod(ei, REPORT_MULTIPLE) == 0
                 fprintf('  ei=%d / 1200\n', ei);
             end
 
