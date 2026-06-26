@@ -1,6 +1,8 @@
 % Atomic checkpoint beamform script with resumability
 % Saves every N ei iterations (configurable). On crash, resume from last checkpoint.
 
+clearvars
+
 %% Configuration
 
 CHECKPOINT_INTERVAL = 10;  % Save checkpoint every N ei iterations
@@ -13,7 +15,6 @@ OUTPUT_DIR = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\beamform';
 
 %% Setup & Resume
 
-clearvars
 addpath(fileparts(DATA_DIR));
 load(WORKSPACE_FILE);
 
