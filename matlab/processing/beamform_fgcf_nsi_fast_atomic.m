@@ -119,10 +119,21 @@ for ai = 1:1
         toc
 
         % Inner loop over elements
+        ei_times = zeros(1, 1200);
         for ei = (last_ei + 1):1200
 
+            ei_t_start = tic;
+
             if mod(ei, REPORT_MULTIPLE) == 0
-                fprintf('  ei=%d / 1200\n', ei);
+                completed = ei - last_ei - 1;
+                if completed > 0
+                    avg_t = mean(ei_times(last_ei+1 : ei-1));
+                    remaining = 1200 - ei;
+                    eta = datetime('now') + seconds(avg_t * remaining);
+                    fprintf('  ei=%d / 1200 | avg %.2fs | ETA %s\n', ei, avg_t, datestr(eta, 'HH:MM:SS'));
+                else
+                    fprintf('  ei=%d / 1200\n', ei);
+                end
             end
 
             rf_0angle     = RFdata(3*(ai-1)*frame_length+1 : 3*(ai-1)*frame_length+frame_length, :, ei);
@@ -151,6 +162,8 @@ for ai = 1:1
             fgcf_ds(:,:,ei)       = single(spectral_gcf_weighted_data);
             fcf_weight_ds(:,:,ei) = single(spectral_cf_weight);
             fgcf_weight_ds(:,:,ei)= single(spectral_gcf_weight);
+
+            ei_times(ei) = toc(ei_t_start);
 
             % Checkpoint every N iterations
             if mod(ei, CHECKPOINT_INTERVAL) == 0
