@@ -57,37 +57,46 @@ if ~isempty(old)
 end
 
 fig = uifigure('Name', 'Scan Control Panel', ...
-               'Position', [100 100 620 620], ...
+               'Position', [100 100 620 650], ...
                'Tag', 'ScanControlPanel', ...
                'Resize', 'off');
 
 % Title
 uilabel(fig, 'Text', 'Scan Control Panel', ...
-        'Position', [10 575 320 30], ...
+        'Position', [10 605 320 30], ...
         'FontSize', 16, 'FontWeight', 'bold', ...
         'HorizontalAlignment', 'center');
 
 % ── Sweep progress ────────────────────────────────────────────────────────
 uilabel(fig, 'Text', 'Sweep progress:', ...
-        'Position', [20 535 120 22], 'FontWeight', 'bold');
+        'Position', [20 565 120 22], 'FontWeight', 'bold');
 hProgress = uilabel(fig, 'Text', sprintf('0 / %d', TOTAL_SWEEPS), ...
-        'Position', [145 535 170 22], ...
+        'Position', [145 565 170 22], ...
         'FontSize', 13, 'FontColor', [0.2 0.5 0.2]);
 
 % ── Position display ──────────────────────────────────────────────────────
 uilabel(fig, 'Text', 'Stage position:', ...
-        'Position', [20 500 120 22], 'FontWeight', 'bold');
+        'Position', [20 530 120 22], 'FontWeight', 'bold');
 hPos = uilabel(fig, 'Text', 'x=-.--- y=-.--- z=-.--- mm', ...
-        'Position', [20 478 300 22], 'FontSize', 11);
+        'Position', [20 508 300 22], 'FontSize', 11);
 
 % ── Status ────────────────────────────────────────────────────────────────
 uilabel(fig, 'Text', 'Status:', ...
-        'Position', [20 445 60 22], 'FontWeight', 'bold');
+        'Position', [20 475 60 22], 'FontWeight', 'bold');
 hStatus = uilabel(fig, 'Text', 'Not started', ...
-        'Position', [85 445 235 22], 'FontColor', [0.5 0.5 0.5]);
+        'Position', [85 475 235 22], 'FontColor', [0.5 0.5 0.5]);
 
 % Divider
-uipanel(fig, 'Position', [15 435 310 2], 'BackgroundColor', [0.7 0.7 0.7]);
+uipanel(fig, 'Position', [15 465 310 2], 'BackgroundColor', [0.7 0.7 0.7]);
+
+% ── Scan mode selector ────────────────────────────────────────────────────
+uilabel(fig, 'Text', 'Scan mode:', ...
+        'Position', [20 443 80 18], 'FontSize', 10, 'FontWeight', 'bold');
+hScanMode = uidropdown(fig, ...
+        'Items', {'Raster  (return X, same direction)', 'Snake  (alternate direction, Y step only)'}, ...
+        'Position', [103 440 217 22], ...
+        'Value', 'Raster  (return X, same direction)', ...
+        'FontSize', 10);
 
 % ── Auto Scan button ──────────────────────────────────────────────────────
 hAuto = uibutton(fig, 'Text', 'Auto Scan (all lanes)', ...
@@ -468,10 +477,18 @@ sweepsDone = 0;
             addLog('Running SetUp script...');
         end
 
+        snakeMode = startsWith(hScanMode.Value, 'Snake');
         assignin('base', 'guiLog',           @addLog);
         assignin('base', 'sweepLateralY_mm', sweepsDone * Y_STEPS * 0.1);
         assignin('base', 'sweepInProgress',  true);
         assignin('base', 'autoScanMode',     autoMode);
+        % Snake: alternate +1/-1 each lane; Raster: always +1 (X return in reposition)
+        if snakeMode
+            sweepDir = 1 - 2 * mod(sweepsDone, 2);
+        else
+            sweepDir = 1;
+        end
+        assignin('base', 'sweepDir', sweepDir);
 
         script = setup_script;
         evalin('base', sprintf("run('%s')", strrep(script, '\', '/')));
@@ -480,11 +497,16 @@ sweepsDone = 0;
     end
 
     function doReposition()
-        % Move stage: return X + advance Y to next lane.
-        setStatus('Returning X and advancing Y...', [0.6 0.4 0]);
+        % Move stage to start of next lane.
+        snakeMode = startsWith(hScanMode.Value, 'Snake');
+        if snakeMode
+            setStatus('Advancing Y (snake step)...', [0.6 0.4 0]);
+        else
+            setStatus('Returning X and advancing Y...', [0.6 0.4 0]);
+        end
         drawnow;
         stage = evalin('base', 'stage');
-        repositionProbe(stage);
+        repositionProbe(stage, snakeMode);
         assignin('base', 'stage', stage);
         updatePosition();
     end

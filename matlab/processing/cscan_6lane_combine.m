@@ -9,10 +9,11 @@
 file_path = 'E:\issac\chip_point_simu_txt_save19-June-2026';
 date_str  = '19-June-2026';
 
-N_LANES   = 6;
-DY        = 6.9;    % mm between lanes
-SX        = 60.0;   % mm sweep length per lane
-STEP      = 0.05;   % mm per acquisition step
+N_LANES      = 6;
+DY           = 6.9;    % mm between lanes
+SX           = 60.0;   % mm sweep length per lane
+STEP         = 0.05;   % mm per acquisition step
+SNAKE_PATTERN = true;  % true = filenames include _fwd/_rev tag; even lanes are flipped
 
 % C-scan parameters (shared across all lanes)
 opts.search_range = [];    % [] = auto-detect per lane
@@ -30,8 +31,15 @@ n_acq_vec    = zeros(1, N_LANES);
 for k = 1:N_LANES
     lat_mm   = (k - 1) * DY;
     lat_tag  = sprintf('%.1fmm', lat_mm);
-    base     = sprintf('RFbatch_5angle_PI_single_step0.05mm_x41.4mm_%s_%srotated90deg', ...
+    if SNAKE_PATTERN
+        dir_tag = 'fwd';
+        if mod(k - 1, 2) == 1; dir_tag = 'rev'; end
+        base = sprintf('RFbatch_5angle_PI_single_step0.05mm_x41.4mm_%s_%s_%srotated90deg', ...
+                       lat_tag, dir_tag, date_str);
+    else
+        base = sprintf('RFbatch_5angle_PI_single_step0.05mm_x41.4mm_%s_%srotated90deg', ...
                        lat_tag, date_str);
+    end
     mat_file = [base '_size.mat'];
     txt_file = [base '.txt'];
 

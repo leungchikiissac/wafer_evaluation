@@ -39,7 +39,7 @@
 
 % Preserve variables set by ScanControlPanel before this script runs
 % (sweepLateralY_mm is used by saveRF_wafer_txt.m to tag the RF filename).
-clearvars -except sweepLateralY_mm guiLog stage autoScanMode
+clearvars -except sweepLateralY_mm guiLog stage autoScanMode sweepDir
 
 %% CONNECT MOTION STAGE
 addpath('C:\Users\Administrator\Desktop\3d_motion_stage\FMC4030-Matlab-demo\Matlab\')
