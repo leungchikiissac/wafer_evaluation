@@ -136,12 +136,16 @@ for ai = 1:1
             if mod(ei, REPORT_MULTIPLE) == 0
                 completed = ei - last_ei - 1;
                 if completed > 0
-                    avg_t      = mean(ei_times(last_ei+1 : ei-1));
-                    remaining  = n_ei - ei;
-                    total_est  = avg_t * n_ei;
-                    eta        = datetime('now') + seconds(avg_t * remaining);
-                    fprintf('  ei=%d / %d | avg %.2fs | total est %.1fh | ETA %s\n', ...
-                        ei, n_ei, avg_t, total_est/3600, datestr(eta, 'dd-mmm HH:MM:SS'));
+                    avg_t     = mean(ei_times(last_ei+1 : ei-1));
+                    remaining = n_ei - ei;
+                    total_est = avg_t * n_ei;
+                    eta       = datetime('now') + seconds(avg_t * remaining);
+                    [~, gpu_str] = system('nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>nul');
+                    gpu_util = str2double(strtrim(gpu_str));
+                    if isnan(gpu_util), gpu_util = -1; end
+                    fprintf('  ei=%d / %d | avg %.2fs | total est %.1fh | GPU %d%% | ETA %s\n', ...
+                        ei, n_ei, avg_t, total_est/3600, gpu_util, ...
+                        datestr(eta, 'dd-mmm-yyyy HH:MM:SS'));
                 else
                     fprintf('  ei=%d / %d\n', ei, n_ei);
                 end
@@ -157,7 +161,7 @@ for ai = 1:1
             [ps_data, dclbf, dcrbf, zmlbf, spectral_cf_weighted_data, ...
                  cf_weighted_data, gcf_weighted_data, spectral_gcf_weighted_data, ...
                  spectral_cf_weight, spectral_gcf_weight, dclbf01, dcrbf01, zmlbf01] = ...
-                 bf_fgcf_fast_execute(rf_0angle_cut_interp, bf_params, fs, ul, ua);
+                 bf_fgcf_fast_execute_gpu(rf_0angle_cut_interp, bf_params, fs, ul, ua);
 
             % Store
             ps_data_ds(:,:,ei)    = single(ps_data);
