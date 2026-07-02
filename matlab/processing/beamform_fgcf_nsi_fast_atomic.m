@@ -9,10 +9,10 @@ CHECKPOINT_INTERVAL = 10;  % Save checkpoint every N ei iterations
 REPORT_MULTIPLE = 2;
 
 % Paths (modify these as needed)
-WORKSPACE_FILE   = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\matlab_workspace.mat';
-DATA_DIR         = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026';
-CHECKPOINT_BASE  = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\checkpoints';
-OUTPUT_DIR       = 'E:\dbz\chip_scan\chip_4inch_0angle_txt_save15-May-2026\beamform';
+WORKSPACE_FILE   = 'E:\issac\chip_scan\chip_4inch_0angle_txt_save15-May-2026\matlab_workspace.mat';
+DATA_DIR         = 'E:\issac\chip_scan\chip_4inch_0angle_txt_save15-May-2026';
+CHECKPOINT_BASE  = 'E:\issac\chip_scan\chip_4inch_0angle_txt_save15-May-2026\checkpoints';
+OUTPUT_DIR       = 'E:\issac\chip_scan\chip_4inch_0angle_txt_save15-May-2026\beamform';
 
 % Beamform parameters (must match those used in bf_params precomputation)
 depth = 2048;
