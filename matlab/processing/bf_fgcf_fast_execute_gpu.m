@@ -167,13 +167,15 @@ function [ps_data, dclbf, dcrbf, zmlbf, spectral_cf_weighted_data, cf_weighted_d
         end
         clear spec_r
 
-        Bk4  = reshape(Bk, [half_len, Na, B, 4]);
+        % Bk layout: [half_len*Na × 4 × B] — 4-bin dim (stride half_len*Na) before B dim.
+        % Correct reshape: [half_len, Na, 4, B], then index bin dim (3) not last dim.
+        Bk4  = reshape(Bk, [half_len, Na, 4, B]);
         clear Bk
         pB0  = abs(sum_3d).^2;                  % DC spatial bin
-        pB1  = abs(Bk4(:,:,:,1)).^2;
-        pB2  = abs(Bk4(:,:,:,2)).^2;
-        pBm2 = abs(Bk4(:,:,:,3)).^2;
-        pBm1 = abs(Bk4(:,:,:,4)).^2;
+        pB1  = reshape(abs(Bk4(:,:,1,:)).^2, [half_len, Na, B]);
+        pB2  = reshape(abs(Bk4(:,:,2,:)).^2, [half_len, Na, B]);
+        pBm2 = reshape(abs(Bk4(:,:,3,:)).^2, [half_len, Na, B]);
+        pBm1 = reshape(abs(Bk4(:,:,4,:)).^2, [half_len, Na, B]);
         clear Bk4
 
         P_tot  = C * power_3d;
