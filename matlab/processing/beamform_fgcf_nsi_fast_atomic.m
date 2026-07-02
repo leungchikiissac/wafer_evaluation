@@ -1,12 +1,13 @@
 % Atomic checkpoint beamform script with resumability
 % Saves every N ei iterations (configurable). On crash, resume from last checkpoint.
+% Checkpoint strategy: incremental batch files — only new slices saved each time (~260 MB constant).
 
 clearvars
 
 %% Configuration
 
 CHECKPOINT_INTERVAL = 10;  % Save checkpoint every N ei iterations
-REPORT_MULTIPLE = 2;
+REPORT_MULTIPLE     = 2;
 
 % Paths (modify these as needed)
 WORKSPACE_FILE   = 'E:\issac\chip_scan\chip_4inch_0angle_txt_save15-May-2026\matlab_workspace.mat';
@@ -28,48 +29,51 @@ if ~exist(CHECKPOINT_BASE, 'dir')
     mkdir(CHECKPOINT_BASE);
 end
 
+out_depth = floor(depth / ua);
+out_lat   = ele * 2;
+n_ei      = 1200;
+VAR_NAMES = {'ps_data_ds','zmlbf_ds','dcrbf_ds','dclbf_ds', ...
+             'fcf_ds','cf_ds','gcf_ds','fgcf_ds', ...
+             'fcf_weight_ds','fgcf_weight_ds', ...
+             'zmlbf01_ds','dclbf01_ds','dcrbf01_ds'};
+
 xloc    = 0:6.9:41.4;
 last_xi = 3;   % Default: start from xi=3 (matches original script)
 last_ei = 0;
 
-% Scan checkpoint_base (not a new subdir) for existing checkpoints
-checkpoint_files = dir(fullfile(CHECKPOINT_BASE, '**', 'checkpoint_xi*.mat'));
-if ~isempty(checkpoint_files)
-    for f = checkpoint_files'
-        parts = sscanf(f.name, 'checkpoint_xi%d_ei%d.mat');
-        if numel(parts) == 2
-            if parts(1) > last_xi || (parts(1) == last_xi && parts(2) > last_ei)
-                last_xi = parts(1);
-                last_ei = parts(2);
-            end
+% Always preallocate output arrays first
+for v = VAR_NAMES
+    eval([v{1} ' = zeros(out_depth, out_lat, n_ei, ''single'');']);
+end
+
+% Scan for incremental checkpoint files from a previous run
+cp_files = dir(fullfile(CHECKPOINT_BASE, 'cp_xi*_ei*.mat'));
+if ~isempty(cp_files)
+    % Find the latest xi — use files from that xi only
+    xi_nums = arrayfun(@(f) sscanf(f.name, 'cp_xi%d_ei%d.mat'), cp_files, 'UniformOutput', false);
+    xi_nums = cellfun(@(x) x(1), xi_nums);
+    last_xi = max(xi_nums);
+
+    % Load all checkpoint files for last_xi in order to reconstruct state
+    xi_files = cp_files(xi_nums == last_xi);
+    ei_nums  = arrayfun(@(f) sscanf(f.name, 'cp_xi%d_ei%d.mat'), xi_files, 'UniformOutput', false);
+    ei_nums  = cellfun(@(x) x(2), ei_nums);
+    [ei_nums, sort_idx] = sort(ei_nums);
+    xi_files = xi_files(sort_idx);
+
+    fprintf('Resuming xi=%d — loading %d checkpoint files...\n', last_xi, numel(xi_files));
+    for k = 1:numel(xi_files)
+        S  = load(fullfile(CHECKPOINT_BASE, xi_files(k).name));
+        ei_end   = ei_nums(k);
+        ei_start = ei_end - CHECKPOINT_INTERVAL + 1;
+        r = ei_start:ei_end;
+        for v = VAR_NAMES
+            eval([v{1} '(:,:,r) = S.' v{1} '_ck;']);
         end
     end
-
-    % Load the latest checkpoint
-    checkpoint_file = fullfile(CHECKPOINT_BASE, sprintf('checkpoint_xi%d_ei%d.mat', last_xi, last_ei));
-    fprintf('Loading checkpoint: xi=%d, ei=%d\n', last_xi, last_ei);
-    load(checkpoint_file);
+    last_ei = ei_nums(end);
     fprintf('Resuming from xi=%d, ei=%d\n', last_xi, last_ei);
 else
-    % First run: initialize output arrays with correct dimensions
-    out_depth = floor(depth / ua);
-    out_lat   = ele * 2;  % interp2 doubles lateral resolution
-    n_ei      = 1200;
-
-    ps_data_ds    = zeros(out_depth, out_lat, n_ei, 'single');
-    zmlbf_ds      = zeros(out_depth, out_lat, n_ei, 'single');
-    dcrbf_ds      = zeros(out_depth, out_lat, n_ei, 'single');
-    dclbf_ds      = zeros(out_depth, out_lat, n_ei, 'single');
-    zmlbf01_ds    = zeros(out_depth, out_lat, n_ei, 'single');
-    dcrbf01_ds    = zeros(out_depth, out_lat, n_ei, 'single');
-    dclbf01_ds    = zeros(out_depth, out_lat, n_ei, 'single');
-    fcf_ds        = zeros(out_depth, out_lat, n_ei, 'single');
-    cf_ds         = zeros(out_depth, out_lat, n_ei, 'single');
-    gcf_ds        = zeros(out_depth, out_lat, n_ei, 'single');
-    fgcf_ds       = zeros(out_depth, out_lat, n_ei, 'single');
-    fcf_weight_ds = zeros(out_depth, out_lat, n_ei, 'single');
-    fgcf_weight_ds= zeros(out_depth, out_lat, n_ei, 'single');
-
     fprintf('Starting fresh run from xi=%d, ei=1\n', last_xi);
 end
 
@@ -112,15 +116,20 @@ for ai = 1:1
         RF_Dim = rf_size;
 
         fid    = fopen(filename_read, 'r');
-        RF_tmp = fread(fid, 'double');   % read as double directly — avoids int16 cast inside loop
+        RF_tmp = fread(fid, 'double');
         fclose(fid);
         RFdata = reshape(RF_tmp, RF_Dim);
 
         toc
 
+        % Reset output arrays for this xi position
+        for v = VAR_NAMES
+            eval([v{1} '(:) = 0;']);
+        end
+
         % Inner loop over elements
-        ei_times = zeros(1, 1200);
-        for ei = (last_ei + 1):1200
+        ei_times = zeros(1, n_ei);
+        for ei = (last_ei + 1):n_ei
 
             ei_t_start = tic;
 
@@ -128,11 +137,11 @@ for ai = 1:1
                 completed = ei - last_ei - 1;
                 if completed > 0
                     avg_t = mean(ei_times(last_ei+1 : ei-1));
-                    remaining = 1200 - ei;
+                    remaining = n_ei - ei;
                     eta = datetime('now') + seconds(avg_t * remaining);
-                    fprintf('  ei=%d / 1200 | avg %.2fs | ETA %s\n', ei, avg_t, datestr(eta, 'HH:MM:SS'));
+                    fprintf('  ei=%d / %d | avg %.2fs | ETA %s\n', ei, n_ei, avg_t, datestr(eta, 'HH:MM:SS'));
                 else
-                    fprintf('  ei=%d / 1200\n', ei);
+                    fprintf('  ei=%d / %d\n', ei, n_ei);
                 end
             end
 
@@ -148,7 +157,7 @@ for ai = 1:1
                  spectral_cf_weight, spectral_gcf_weight, dclbf01, dcrbf01, zmlbf01] = ...
                  bf_fgcf_fast_execute(rf_0angle_cut_interp, bf_params, fs, ul, ua);
 
-            % Store (ua=1 so 1:ua:end is full array)
+            % Store
             ps_data_ds(:,:,ei)    = single(ps_data);
             zmlbf_ds(:,:,ei)      = single(zmlbf);
             dcrbf_ds(:,:,ei)      = single(dcrbf);
@@ -165,15 +174,17 @@ for ai = 1:1
 
             ei_times(ei) = toc(ei_t_start);
 
-            % Checkpoint every N iterations
+            % Incremental checkpoint — save only the new CHECKPOINT_INTERVAL slices
             if mod(ei, CHECKPOINT_INTERVAL) == 0
-                checkpoint_file = fullfile(CHECKPOINT_BASE, sprintf('checkpoint_xi%d_ei%d.mat', xi, ei));
-                save(checkpoint_file, ...
-                    'ps_data_ds', 'zmlbf_ds', 'dcrbf_ds', 'dclbf_ds', ...
-                    'fcf_ds', 'cf_ds', 'gcf_ds', 'fgcf_ds', ...
-                    'fcf_weight_ds', 'fgcf_weight_ds', ...
-                    'zmlbf01_ds', 'dclbf01_ds', 'dcrbf01_ds', ...
-                    'downsample', 'dc', 'xi', 'ei', '-v7.3');
+                r  = (ei - CHECKPOINT_INTERVAL + 1):ei;
+                cp = struct('xi', xi, 'ei', ei, 'downsample', downsample, 'dc', dc);
+                for v = VAR_NAMES
+                    cp.([v{1} '_ck']) = eval([v{1} '(:,:,r)']);
+                end
+                tmp_file = fullfile(CHECKPOINT_BASE, sprintf('cp_xi%d_ei%04d.tmp', xi, ei));
+                cp_file  = fullfile(CHECKPOINT_BASE, sprintf('cp_xi%d_ei%04d.mat', xi, ei));
+                save(tmp_file, '-struct', 'cp', '-v7.3');
+                movefile(tmp_file, cp_file);   % atomic rename — no half-written files
                 fprintf('    Checkpoint saved: xi=%d, ei=%d\n', xi, ei);
             end
         end
@@ -188,6 +199,13 @@ for ai = 1:1
             'fcf_weight_ds', 'fgcf_weight_ds', 'zmlbf01_ds', 'dclbf01_ds', 'dcrbf01_ds');
 
         fprintf('Final save: %s\n', save_name);
+
+        % Clean up checkpoint files for completed xi
+        old_cps = dir(fullfile(CHECKPOINT_BASE, sprintf('cp_xi%d_ei*.mat', xi)));
+        for f = old_cps'
+            delete(fullfile(CHECKPOINT_BASE, f.name));
+        end
+        fprintf('Cleaned up %d checkpoint files for xi=%d\n', numel(old_cps), xi);
 
         last_ei = 0;  % Reset for next xi
     end
