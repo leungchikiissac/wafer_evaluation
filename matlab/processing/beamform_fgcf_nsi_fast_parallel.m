@@ -64,8 +64,8 @@ else
     fprintf('Reusing parpool (%d workers)\n', pool.NumWorkers);
 end
 
-% Ensure v2 function is visible on each worker; set thread count per worker
-% to avoid single-threaded BLAS serialisation (workers default to 1 thread).
+% Ensure v2 and bf_cpu_task are visible on each worker; set thread count.
+% Workers default to 1 computational thread — set to floor(n_cores/N_WORKERS).
 script_dir = fileparts(mfilename('fullpath'));
 n_cores    = feature('numCores');
 n_threads_per_worker = max(1, floor(n_cores / N_WORKERS));
@@ -75,6 +75,20 @@ spmd
 end
 fprintf('Workers configured: %d physical cores / %d workers = %d threads/worker\n', ...
     n_cores, N_WORKERS, n_threads_per_worker);
+
+% Quick parallel efficiency test — 4 workers × 5 s pause.
+% Ideal: ~5 s wall. Serial: ~20 s wall.
+fprintf('Parallel test (%d workers × 5 s pause)... ', N_WORKERS);
+t_pt = tic;
+f_pt = parallel.FevalFuture.empty;
+for k = 1:N_WORKERS
+    f_pt(k) = parfeval(pool, @pause, 0, 5);
+end
+for k = 1:N_WORKERS
+    fetchOutputs(f_pt(k));
+end
+t_pt_wall = toc(t_pt);
+fprintf('%.1f s (%.0f%% parallel efficiency)\n\n', t_pt_wall, 100*5/t_pt_wall);
 
 %% ── Workspace + bf_params ─────────────────────────────────────────────────
 
@@ -147,25 +161,24 @@ fprintf('\nGPU warmup (building ~4.3 GB persistent cache)...\n');
 bf_fgcf_fast_execute_gpu(zeros(depth, out_lat, 'single'), bf_params, fs, ul, ua);
 fprintf('GPU ready.\n');
 
-%% ── Worker warmup (JIT-compile v2 on all workers) ─────────────────────────
-% First parfeval call incurs MATLAB JIT compilation on each worker (~60-90s).
-% Run a dummy round now so production rounds don't carry that overhead.
-% Warmup also exercises bf_const.Value access on every worker.
-
-fprintf('Worker warmup (JIT compilation of v2 on all %d workers)...\n', N_WORKERS);
+%% ── Worker warmup (JIT-compile v2 + cache bf_params persistently) ────────
+% Worker warmup: JIT-compile v2 AND cache bf_params in each worker's
+% persistent variable (bf_cpu_task.m stores cached_bp on first call with
+% bf_const, skips deserialization on all subsequent calls with []).
+fprintf('Worker warmup (JIT + persistent cache of bf_params on all %d workers)...\n', N_WORKERS);
 t_wu = tic;
 dummy_rf = zeros(depth, 128, 'double');
 wf = parallel.FevalFuture.empty;
 for k = 1:N_WORKERS
+    % Pass bf_const so each worker unpacks .Value and caches it persistently
     wf(k) = parfeval(pool, @bf_cpu_task, 1, dummy_rf, bf_const, fs, ul, ua, depth);
 end
-% Harvest all warmup results (blocks until all N_WORKERS finish)
 for k = 1:N_WORKERS
     fetchOutputs(wf(k));
 end
 clear wf
 t_wu_wall = toc(t_wu);
-% If workers ran in parallel, wall ≈ 1 v2 call time. Serial → wall ≈ N × call time.
+% If workers ran in parallel: wall ≈ 1 v2 call. Serial: wall ≈ N × call.
 fprintf('Workers ready (%.1f s wall | %.1f s per worker if serial)\n\n', ...
     t_wu_wall, t_wu_wall / N_WORKERS);
 
@@ -208,12 +221,13 @@ for xi = last_xi:7
 
         t_round = tic;
 
-        % Step 1: Submit CPU jobs asynchronously (workers start immediately)
+        % Step 1: Submit CPU jobs asynchronously (workers start immediately).
+        % Pass [] for bf_const — workers use the persistent cached_bp from warmup.
         F = parallel.FevalFuture.empty;
         for k = 1:n_cpu_r
             rf_cut = RFdata(row0:row1, :, ei_cpu(k));
             F(k)   = parfeval(pool, @bf_cpu_task, 1, ...
-                              rf_cut(1:depth,:), bf_const, fs, ul, ua, depth);
+                              rf_cut(1:depth,:), [], fs, ul, ua, depth);
         end
 
         % Step 2: GPU jobs on main thread (overlap with workers running above)
@@ -314,18 +328,6 @@ end
 
 fprintf('\n=== All processing complete ===\n');
 
-%% ════════════════════════════════════════════════════════════════════════════
-%  Local functions
-%% ════════════════════════════════════════════════════════════════════════════
-
-function res = bf_cpu_task(rf_cut, bf_const, fs, ul, ua, depth)
-    % Worker task: lateral interp + CPU v2 beamform.
-    % bf_const is a parallel.pool.Constant — use .Value to access bf_params.
-    % Interp grids are rebuilt locally (cheap; avoids broadcasting 8 MB per call).
-    [xo,  yo ] = meshgrid(1:size(rf_cut,2), 1:depth);
-    [xii, yii] = meshgrid(1:0.5:size(rf_cut,2)+0.5, 1:depth);
-    din = interp2(xo, yo, double(rf_cut), xii, yii);
-    res = cell(1, 13);
-    [res{:}] = bf_fgcf_fast_execute_v2(din, bf_const.Value, fs, ul, ua);
-    res = cellfun(@single, res, 'UniformOutput', false);
-end
+% bf_cpu_task is in bf_cpu_task.m (same directory, on workers' path via addpath).
+% It uses a persistent cached_bp populated during warmup so production calls
+% never touch parallel.pool.Constant.Value (which serialises concurrent workers).
