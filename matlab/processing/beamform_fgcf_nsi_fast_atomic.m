@@ -136,10 +136,12 @@ for ai = 1:1
             if mod(ei, REPORT_MULTIPLE) == 0
                 completed = ei - last_ei - 1;
                 if completed > 0
-                    avg_t = mean(ei_times(last_ei+1 : ei-1));
-                    remaining = n_ei - ei;
-                    eta = datetime('now') + seconds(avg_t * remaining);
-                    fprintf('  ei=%d / %d | avg %.2fs | ETA %s\n', ei, n_ei, avg_t, datestr(eta, 'HH:MM:SS'));
+                    avg_t      = mean(ei_times(last_ei+1 : ei-1));
+                    remaining  = n_ei - ei;
+                    total_est  = avg_t * n_ei;
+                    eta        = datetime('now') + seconds(avg_t * remaining);
+                    fprintf('  ei=%d / %d | avg %.2fs | total est %.1fh | ETA %s\n', ...
+                        ei, n_ei, avg_t, total_est/3600, datestr(eta, 'dd-mmm HH:MM:SS'));
                 else
                     fprintf('  ei=%d / %d\n', ei, n_ei);
                 end
