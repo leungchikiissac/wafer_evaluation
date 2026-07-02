@@ -64,9 +64,17 @@ else
     fprintf('Reusing parpool (%d workers)\n', pool.NumWorkers);
 end
 
-% Ensure v2 function is visible on each worker
+% Ensure v2 function is visible on each worker; set thread count per worker
+% to avoid single-threaded BLAS serialisation (workers default to 1 thread).
 script_dir = fileparts(mfilename('fullpath'));
-spmd, addpath(script_dir); end
+n_cores    = feature('numCores');
+n_threads_per_worker = max(1, floor(n_cores / N_WORKERS));
+spmd
+    addpath(script_dir);
+    maxNumCompThreads(n_threads_per_worker);
+end
+fprintf('Workers configured: %d physical cores / %d workers = %d threads/worker\n', ...
+    n_cores, N_WORKERS, n_threads_per_worker);
 
 %% ── Workspace + bf_params ─────────────────────────────────────────────────
 
@@ -137,7 +145,29 @@ end
 
 fprintf('\nGPU warmup (building ~4.3 GB persistent cache)...\n');
 bf_fgcf_fast_execute_gpu(zeros(depth, out_lat, 'single'), bf_params, fs, ul, ua);
-fprintf('GPU ready.\n\n');
+fprintf('GPU ready.\n');
+
+%% ── Worker warmup (JIT-compile v2 on all workers) ─────────────────────────
+% First parfeval call incurs MATLAB JIT compilation on each worker (~60-90s).
+% Run a dummy round now so production rounds don't carry that overhead.
+% Warmup also exercises bf_const.Value access on every worker.
+
+fprintf('Worker warmup (JIT compilation of v2 on all %d workers)...\n', N_WORKERS);
+t_wu = tic;
+dummy_rf = zeros(depth, 128, 'double');
+wf = parallel.FevalFuture.empty;
+for k = 1:N_WORKERS
+    wf(k) = parfeval(pool, @bf_cpu_task, 1, dummy_rf, bf_const, fs, ul, ua, depth);
+end
+% Harvest all warmup results (blocks until all N_WORKERS finish)
+for k = 1:N_WORKERS
+    fetchOutputs(wf(k));
+end
+clear wf
+t_wu_wall = toc(t_wu);
+% If workers ran in parallel, wall ≈ 1 v2 call time. Serial → wall ≈ N × call time.
+fprintf('Workers ready (%.1f s wall | %.1f s per worker if serial)\n\n', ...
+    t_wu_wall, t_wu_wall / N_WORKERS);
 
 %% ── Main xi loop ──────────────────────────────────────────────────────────
 
