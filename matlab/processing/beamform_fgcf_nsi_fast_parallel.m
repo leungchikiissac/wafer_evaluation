@@ -20,8 +20,8 @@ clearvars
 %% ── Configuration ─────────────────────────────────────────────────────────
 
 N_WORKERS         = 4;     % CPU parallel workers
-K_CPU             = 4;     % ei per round on CPU workers  (≈ 66s / 4 workers)
-K_GPU             = 3;     % ei per round on GPU main     (≈ 63s for 3 ei)
+K_CPU             = 4;     % ei per round on CPU workers  (≈ 119s / 4 workers in parallel)
+K_GPU             = 6;     % ei per round on GPU main     (≈ 126s for 6 ei)
 ROUND_SIZE        = K_CPU + K_GPU;   % 7 ei per round
 CHECKPOINT_ROUNDS = 2;     % flush checkpoint every N rounds (= 14 ei)
 
