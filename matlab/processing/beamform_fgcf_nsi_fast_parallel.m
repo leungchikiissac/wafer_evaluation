@@ -197,8 +197,11 @@ for xi = last_xi:7
     RFdata = reshape(RF_tmp, RF_Dim);
     fprintf('  Data loaded (%.1f s)\n', toc);
 
-    % Reset output arrays for this xi
-    for v = VAR_NAMES, eval([v{1} '(:) = 0;']); end
+    % Reset output arrays for this xi.
+    % Skip on the resumed xi: checkpoint data already reconstructed above.
+    if ~(xi == last_xi && last_ei > 0)
+        for v = VAR_NAMES, eval([v{1} '(:) = 0;']); end
+    end
 
     row0 = 3*(ai-1)*frame_length + 1;
     row1 = 3*(ai-1)*frame_length + frame_length;
