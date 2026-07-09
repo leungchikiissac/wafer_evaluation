@@ -33,7 +33,7 @@ N_EI         = 1200;
 
 % ── Depth specification ────────────────────────────────────────────────────
 % Depths below the detected surface to gate, in mm.
-GATE_DEPTHS_MM = [0.1, 0.2, 0.3];
+GATE_DEPTHS_MM = [0.0, 0.05, 0.1];
 
 % Gate window thickness in mm (integration depth per gate).
 AX_LEN_MM = 0.05;
