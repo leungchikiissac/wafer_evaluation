@@ -20,79 +20,101 @@ TESTING = false;
 STEP_MIN = 0;
 STEP_MAX = 100;
 
-% Close any leftover panel from a previous run
+% ── DeepSonix palette (MATLAB [R G B]) ────────────────────────────────────
+C.bg_win   = [0.039 0.094 0.188];
+C.bg_panel = [0.067 0.125 0.251];
+C.bg_input = [0.059 0.118 0.220];
+C.toolbar  = [0.027 0.067 0.122];
+C.cyan     = [0.000 0.784 0.941];
+C.amber    = [0.961 0.612 0.102];
+C.green    = [0.122 0.749 0.459];
+C.red      = [0.898 0.282 0.302];
+C.text     = [1.000 1.000 1.000];
+C.muted    = [0.624 0.698 0.800];
+
 old = findall(groot, 'Type', 'figure', 'Tag', 'StageJogPanel');
 if ~isempty(old)
     delete(old);
 end
 
-fig = uifigure('Name', 'Stage Jog Panel', ...
+fig = uifigure('Name', 'DeepSonix — Stage Jog Panel', ...
                'Position', [480 100 260 320], ...
                'Tag', 'StageJogPanel', ...
+               'Color', C.bg_win, ...
                'Resize', 'off', ...
                'CloseRequestFcn', @(~,~) onClose());
 
 uilabel(fig, 'Text', 'Stage Jog Panel', ...
         'Position', [10 280 240 30], ...
         'FontSize', 16, 'FontWeight', 'bold', ...
+        'FontColor', C.amber, ...
+        'BackgroundColor', C.bg_win, ...
         'HorizontalAlignment', 'center');
 
-% ── Step size entry ─────────────────────────────────────────────────────
+% ── Step size entry ──────────────────────────────────────────────────────
 uilabel(fig, 'Text', 'Step (mm):', ...
-        'Position', [20 235 80 22], 'FontWeight', 'bold');
+        'Position', [20 235 80 22], 'FontWeight', 'bold', ...
+        'FontColor', C.amber, 'BackgroundColor', C.bg_win);
 hStep = uieditfield(fig, 'numeric', ...
         'Position', [105 235 80 22], ...
         'Value', 1, ...
         'Limits', [STEP_MIN STEP_MAX], ...
         'LowerLimitInclusive', 'off', ...
-        'ValueDisplayFormat', '%.3f');
+        'ValueDisplayFormat', '%.3f', ...
+        'BackgroundColor', C.bg_input, ...
+        'FontColor', C.text);
 
-% ── Direction buttons (arranged like a D-pad) ───────────────────────────
+% ── Direction buttons (D-pad) ─────────────────────────────────────────────
 btnSize = 60;
-cx = 130; cy = 140;  % center of the D-pad
+cx = 130; cy = 140;
 
 hUp = uibutton(fig, 'Text', char(9650), ...   % ▲  -X
         'Position', [cx-btnSize/2, cy+btnSize, btnSize, btnSize], ...
         'FontSize', 18, ...
+        'BackgroundColor', C.bg_panel, 'FontColor', C.text, ...
         'ButtonPushedFcn', @(~,~) onJog('X', -1));
 
 hDown = uibutton(fig, 'Text', char(9660), ... % ▼  +X
         'Position', [cx-btnSize/2, cy-btnSize, btnSize, btnSize], ...
         'FontSize', 18, ...
+        'BackgroundColor', C.bg_panel, 'FontColor', C.text, ...
         'ButtonPushedFcn', @(~,~) onJog('X', +1));
 
 hLeft = uibutton(fig, 'Text', char(9664), ... % ◄  -Y
         'Position', [cx-btnSize-btnSize/2, cy, btnSize, btnSize], ...
         'FontSize', 18, ...
+        'BackgroundColor', C.bg_panel, 'FontColor', C.text, ...
         'ButtonPushedFcn', @(~,~) onJog('Y', -1));
 
 hRight = uibutton(fig, 'Text', char(9654), ... % ►  +Y
         'Position', [cx+btnSize/2, cy, btnSize, btnSize], ...
         'FontSize', 18, ...
+        'BackgroundColor', C.bg_panel, 'FontColor', C.text, ...
         'ButtonPushedFcn', @(~,~) onJog('Y', +1));
 
 allButtons = [hUp hDown hLeft hRight];
 
-% ── Position display ─────────────────────────────────────────────────────
+% ── Position display ──────────────────────────────────────────────────────
 hPos = uilabel(fig, 'Text', 'x=-.--- y=-.--- z=-.--- mm', ...
         'Position', [20 50 220 22], 'FontSize', 11, ...
+        'FontColor', C.cyan, ...
+        'BackgroundColor', C.bg_win, ...
         'HorizontalAlignment', 'center');
 
 % ── Status ────────────────────────────────────────────────────────────────
 hStatus = uilabel(fig, 'Text', 'Connecting to stage...', ...
-        'Position', [20 20 220 22], 'FontColor', [0.5 0.5 0.5], ...
+        'Position', [20 20 220 22], ...
+        'FontColor', C.muted, ...
+        'BackgroundColor', C.bg_win, ...
         'HorizontalAlignment', 'center');
 
 % ── Connect to stage ──────────────────────────────────────────────────────
-% Reuse the shared 'stage' object from the base workspace if one already
-% exists (e.g. created by ScanControlPanel) so both panels drive the same
-% connection instead of opening the device twice.
 stage = [];
 ownsConnection = false;
 try
     if evalin('base', 'exist(''stage'',''var'')')
         stage = evalin('base', 'stage');
-        setStatus('Connected (shared with ScanControlPanel).', [0.2 0.5 0.2]);
+        setStatus('Connected (shared with ScanControlPanel).', C.green);
     else
         if TESTING
             stage = MockStageController();
@@ -102,18 +124,17 @@ try
         stage.connect();
         ownsConnection = true;
         assignin('base', 'stage', stage);
-        setStatus('Connected.', [0.2 0.5 0.2]);
+        setStatus('Connected.', C.green);
     end
     updatePosition();
 catch ex
-    setStatus(['Connect failed: ' ex.message], [0.8 0 0]);
+    setStatus(['Connect failed: ' ex.message], C.red);
     [allButtons.Enable] = deal('off');
 end
 
 % ── Callbacks ─────────────────────────────────────────────────────────────
 
     function onJog(axisName, sign)
-        % ── Refuse to move while VSX is running a sweep ────────────────
         try
             busy = evalin('base', ...
                 'exist(''sweepInProgress'',''var'') && sweepInProgress');
@@ -121,28 +142,26 @@ end
             busy = false;
         end
         if busy
-            setStatus('Sweep in progress — jog disabled.', [0.8 0 0]);
+            setStatus('Sweep in progress — jog disabled.', C.red);
             return
         end
 
         step = hStep.Value;
 
-        % ── Validate step size ───────────────────────────────────────
         if isnan(step) || step <= STEP_MIN || step > STEP_MAX
             setStatus(sprintf('Step must be > %g and <= %g mm.', ...
-                      STEP_MIN, STEP_MAX), [0.8 0 0]);
+                      STEP_MIN, STEP_MAX), C.red);
             return
         end
         if abs(step - round(step, 3)) > eps(step) * 10
-            setStatus('Step must have at most 3 decimal places.', [0.8 0 0]);
+            setStatus('Step must have at most 3 decimal places.', C.red);
             return
         end
 
         distance = sign * step;
 
         [allButtons.Enable] = deal('off');
-        setStatus(sprintf('Moving %s by %.3f mm...', axisName, distance), ...
-                  [0.6 0.4 0]);
+        setStatus(sprintf('Moving %s by %.3f mm...', axisName, distance), C.amber);
         drawnow;
 
         try
@@ -153,17 +172,15 @@ end
                     stage.moveY(distance);
             end
             updatePosition();
-            setStatus('Ready.', [0.2 0.5 0.2]);
+            setStatus('Ready.', C.green);
         catch ex
-            setStatus(['Move failed: ' ex.message], [0.8 0 0]);
+            setStatus(['Move failed: ' ex.message], C.red);
         end
 
         [allButtons.Enable] = deal('on');
     end
 
     function onClose()
-        % Only disconnect/clear the stage if this panel created the
-        % connection itself — if shared with ScanControlPanel, leave it.
         if ownsConnection && ~isempty(stage)
             try
                 stage.disconnect();
