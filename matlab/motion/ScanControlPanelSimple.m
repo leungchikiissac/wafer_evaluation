@@ -1,5 +1,13 @@
-function fig = ScanControlPanel(testing)
-% ScanControlPanel  Multi-sweep orchestration GUI.
+function fig = ScanControlPanelSimple(testing)
+% ScanControlPanelSimple  Simplified multi-sweep orchestration GUI.
+%
+%   Compact single-window design (620 × 430):
+%     - Info bar: sweep counter, stage position, status
+%     - Scan Control panel: mode, Auto Scan, Launch VSX, Reposition, Reset
+%     - Stage Jog panel: step field + D-pad
+%
+%   No in-window log box — all events write to logs/scan_<stamp>.log.
+%   Stage disconnects automatically when the window is closed.
 %
 %   Workflow (manual):
 %     1. Press "Launch VSX"  — runs SetUp script, opens Verasonics VSX window
@@ -10,15 +18,10 @@ function fig = ScanControlPanel(testing)
 %   Workflow (automated):
 %     1. Press "Auto Scan"   — launches VSX for each lane automatically,
 %        runs C-scan after each SaveRF, repositions between lanes.
-%        VSX auto-starts the batch sequence; user only needs to press
-%        SaveRF then close VSX per lane. Press "Stop" to abort between lanes.
+%        Press "Stop" to abort between lanes.
 %
-%   The stage object is shared with VSX via the base workspace ('stage').
-%
-%   ScanControlPanel(testing) — pass true to force TESTING mode
-%   (MockStageController + SetUpMock.m, no hardware), overriding the
-%   TESTING constant below. Used by automated tests. Returns the figure
-%   handle.
+%   ScanControlPanelSimple(testing) — pass true for TESTING mode
+%   (MockStageController + SetUpMock.m, no hardware).
 
 TESTING = false;
 if nargin > 0
@@ -28,7 +31,7 @@ end
 DEBUG_SAVERF = false;
 
 TOTAL_SWEEPS  = 6;
-X_STEPS       = 600;
+X_STEPS       = 600;   %#ok<NASGU>
 Y_STEPS       =  69;
 
 % ── Find SetUp scripts ────────────────────────────────────────────────────
@@ -45,8 +48,6 @@ end
 assert(isfile(setup_script), 'SetUp script not found: %s', setup_script);
 
 % ── Session log ───────────────────────────────────────────────────────────
-% One file per session: <project_root>/logs/scan_YYYY-MM-DD_HHmmss.log
-% Open/append/close per entry — no held fid, so disk state is always current.
 logDir  = fullfile(here, '..', '..', 'logs');
 logPath = '';
 try
@@ -54,16 +55,15 @@ try
     stamp   = char(datetime('now', 'Format', 'yyyy-MM-dd_HHmmss'));
     logPath = fullfile(logDir, ['scan_' stamp '.log']);
 catch
-    logPath = '';   % log dir unavailable — GUI continues without file log
+    logPath = '';
 end
-% Share the write callback so StageJogPanel can write to the same file.
 assignin('base', 'scanLogFcn', @logToFile);
 
 % ── DeepSonix palette ─────────────────────────────────────────────────────
 C.bg_win   = [0.039 0.094 0.188];
 C.bg_panel = [0.067 0.125 0.251];
 C.bg_input = [0.059 0.118 0.220];
-C.toolbar  = [0.027 0.067 0.122];
+C.toolbar  = [0.027 0.067 0.122];  %#ok<STRNU>
 C.cyan     = [0.000 0.784 0.941];
 C.amber    = [0.961 0.612 0.102];
 C.green    = [0.122 0.749 0.459];
@@ -77,141 +77,115 @@ BG_RED    = [0.180 0.050 0.050];
 BG_AMBER  = [0.150 0.100 0.020];
 
 % ── Build figure ──────────────────────────────────────────────────────────
-old = findall(groot, 'Type', 'figure', 'Tag', 'ScanControlPanel');
+old = findall(groot, 'Type', 'figure', 'Tag', 'ScanControlPanelSimple');
 if ~isempty(old)
-    delete(old);
+    delete(old);   % fires cleanupPanel on prior instance → disconnects stage
 end
 
 fig = uifigure('Name', 'DeepSonix — Scan Control Panel', ...
-               'Position', [100 100 620 650], ...
-               'Tag', 'ScanControlPanel', ...
+               'Position', [100 100 620 430], ...
+               'Tag', 'ScanControlPanelSimple', ...
                'Color', C.bg_win, ...
                'Resize', 'off', ...
-               'DeleteFcn', @(~,~) closeLog());
+               'CloseRequestFcn', @(~,~) cleanupPanel(), ...
+               'DeleteFcn',       @(~,~) cleanupPanel());
 
-% Title
-uilabel(fig, 'Text', 'Scan Control Panel', ...
-        'Position', [10 605 320 30], ...
-        'FontSize', 16, 'FontWeight', 'bold', ...
-        'FontColor', C.amber, ...
-        'BackgroundColor', C.bg_win, ...
-        'HorizontalAlignment', 'center');
+% ══ Info bar (full width) ══════════════════════════════════════════════════
+infoPanel = uipanel(fig, 'Position', [12 334 596 84], ...
+        'BackgroundColor', C.bg_panel, 'BorderType', 'none');
 
-% ── Sweep progress ────────────────────────────────────────────────────────
-uilabel(fig, 'Text', 'Sweep progress:', ...
-        'Position', [20 565 120 22], 'FontWeight', 'bold', ...
-        'FontColor', C.amber, 'BackgroundColor', C.bg_win);
-hProgress = uilabel(fig, 'Text', sprintf('0 / %d', TOTAL_SWEEPS), ...
-        'Position', [145 565 170 22], ...
-        'FontSize', 13, 'FontColor', C.cyan, ...
-        'BackgroundColor', C.bg_win);
+uilabel(infoPanel, 'Text', 'SWEEP', ...
+        'Position', [16 62 70 14], 'FontSize', 9, ...
+        'FontColor', C.muted, 'BackgroundColor', C.bg_panel);
+hProgress = uilabel(infoPanel, 'Text', sprintf('0 / %d', TOTAL_SWEEPS), ...
+        'Position', [16 30 90 28], ...
+        'FontSize', 20, 'FontWeight', 'bold', 'FontColor', C.cyan, ...
+        'BackgroundColor', C.bg_panel);
 
-% ── Position display ──────────────────────────────────────────────────────
-uilabel(fig, 'Text', 'Stage position:', ...
-        'Position', [20 530 120 22], 'FontWeight', 'bold', ...
-        'FontColor', C.amber, 'BackgroundColor', C.bg_win);
-hPos = uilabel(fig, 'Text', 'x=-.--- y=-.--- z=-.--- mm', ...
-        'Position', [20 508 300 22], 'FontSize', 11, ...
-        'FontColor', C.muted, 'BackgroundColor', C.bg_win);
-
-% ── Status ────────────────────────────────────────────────────────────────
-uilabel(fig, 'Text', 'Status:', ...
-        'Position', [20 475 60 22], 'FontWeight', 'bold', ...
-        'FontColor', C.amber, 'BackgroundColor', C.bg_win);
-hStatus = uilabel(fig, 'Text', 'Not started', ...
-        'Position', [85 475 235 22], ...
-        'FontColor', C.muted, 'BackgroundColor', C.bg_win);
-
-% Divider
-uipanel(fig, 'Position', [15 465 310 2], ...
+uipanel(infoPanel, 'Position', [118 10 1 62], ...
         'BackgroundColor', C.border, 'BorderType', 'none');
 
-% ── Scan mode selector ────────────────────────────────────────────────────
-uilabel(fig, 'Text', 'Scan mode:', ...
-        'Position', [20 443 80 18], 'FontSize', 10, 'FontWeight', 'bold', ...
-        'FontColor', C.amber, 'BackgroundColor', C.bg_win);
-hScanMode = uidropdown(fig, ...
-        'Items', {'Raster  (return X, same direction)', 'Snake  (alternate direction, Y step only)'}, ...
-        'Position', [103 440 217 22], ...
-        'Value', 'Raster  (return X, same direction)', ...
+uilabel(infoPanel, 'Text', 'POSITION (mm)', ...
+        'Position', [130 62 160 14], 'FontSize', 9, ...
+        'FontColor', C.muted, 'BackgroundColor', C.bg_panel);
+hPos = uilabel(infoPanel, 'Text', 'x=-.---  y=-.---  z=-.---', ...
+        'Position', [130 32 440 22], 'FontSize', 13, ...
+        'FontName', 'Consolas', ...
+        'FontColor', C.text, 'BackgroundColor', C.bg_panel);
+
+hStatus = uilabel(infoPanel, 'Text', '●  Not started', ...
+        'Position', [16 8 566 18], 'FontSize', 12, ...
+        'FontColor', C.muted, 'BackgroundColor', C.bg_panel);
+
+% ══ Scan Control (left column) ═════════════════════════════════════════════
+scanPanel = uipanel(fig, 'Position', [12 12 360 310], ...
+        'BackgroundColor', C.bg_panel, 'BorderType', 'none');
+
+uilabel(scanPanel, 'Text', 'SCAN CONTROL', ...
+        'Position', [14 284 200 18], 'FontSize', 11, 'FontWeight', 'bold', ...
+        'FontColor', C.amber, 'BackgroundColor', C.bg_panel);
+
+uilabel(scanPanel, 'Text', 'Scan mode:', ...
+        'Position', [14 254 76 22], 'FontSize', 10, 'FontWeight', 'bold', ...
+        'FontColor', C.amber, 'BackgroundColor', C.bg_panel);
+hScanMode = uidropdown(scanPanel, ...
+        'Items', {'Raster (return X)', 'Snake (alternate X)'}, ...
+        'Position', [96 254 250 24], ...
+        'Value', 'Raster (return X)', ...
         'FontSize', 10, ...
         'BackgroundColor', C.bg_input, ...
         'FontColor', C.text);
 
-% ── Auto Scan button ──────────────────────────────────────────────────────
-hAuto = uibutton(fig, 'Text', 'Auto Scan (all lanes)', ...
-        'Position', [20 390 218 40], ...
+hAuto = uibutton(scanPanel, 'Text', 'Auto Scan', ...
+        'Position', [14 198 244 44], ...
         'FontSize', 13, 'FontWeight', 'bold', ...
         'BackgroundColor', BG_AMBER, 'FontColor', C.amber, ...
         'ButtonPushedFcn', @(~,~) onAutoScan());
 
-% ── Stop button ───────────────────────────────────────────────────────────
-hStop = uibutton(fig, 'Text', 'Stop', ...
-        'Position', [243 390 77 40], ...
+hStop = uibutton(scanPanel, 'Text', 'Stop', ...
+        'Position', [266 198 80 44], ...
         'FontSize', 12, 'FontWeight', 'bold', ...
         'BackgroundColor', BG_RED, 'FontColor', C.red, ...
         'Enable', 'off', ...
         'ButtonPushedFcn', @(~,~) onStop());
 
-% ── Launch VSX button ─────────────────────────────────────────────────────
-hLaunch = uibutton(fig, 'Text', 'Launch VSX', ...
-        'Position', [20 330 300 40], ...
+hLaunch = uibutton(scanPanel, 'Text', 'Launch VSX', ...
+        'Position', [14 146 332 44], ...
         'FontSize', 14, 'FontWeight', 'bold', ...
         'BackgroundColor', BG_GREEN, 'FontColor', C.green, ...
         'ButtonPushedFcn', @(~,~) onLaunchVSX());
 
-% ── Reposition button ─────────────────────────────────────────────────────
-hRepos = uibutton(fig, 'Text', 'Reposition Probe → next lane', ...
-        'Position', [20 270 300 40], ...
-        'FontSize', 13, 'FontWeight', 'bold', ...
-        'BackgroundColor', C.bg_panel, 'FontColor', C.cyan, ...
+hRepos = uibutton(scanPanel, 'Text', 'Reposition', ...
+        'Position', [14 102 332 34], ...
+        'FontSize', 12, 'FontWeight', 'bold', ...
+        'BackgroundColor', C.bg_input, 'FontColor', C.cyan, ...
         'Enable', 'off', ...
         'ButtonPushedFcn', @(~,~) onReposition());
 
-% ── Hint label ───────────────────────────────────────────────────────────
-uilabel(fig, ...
-        'Text', '← Close VSX first, then Reposition, then relaunch VSX', ...
-        'Position', [20 248 300 22], 'FontSize', 10, ...
-        'FontColor', C.muted, 'BackgroundColor', C.bg_win);
+uilabel(scanPanel, 'Text', 'Close VSX → Reposition → Launch VSX', ...
+        'Position', [14 82 332 16], 'FontSize', 9, ...
+        'FontColor', C.muted, 'BackgroundColor', C.bg_panel);
 
-% ── Finish / reset and disconnect buttons ─────────────────────────────────
-hFinish = uibutton(fig, 'Text', 'Reset / Relaunch VSX', ...
-        'Position', [20 200 140 35], ...
-        'BackgroundColor', C.bg_panel, 'FontColor', C.muted, ...
+hFinish = uibutton(scanPanel, 'Text', 'Reset', ...
+        'Position', [14 14 150 28], 'FontSize', 10, ...
+        'BackgroundColor', C.bg_input, 'FontColor', C.muted, ...
         'Enable', 'on', ...
         'ButtonPushedFcn', @(~,~) onReset());
 
-hDisconnect = uibutton(fig, 'Text', 'Disconnect Stage', ...
-        'Position', [180 200 140 35], ...
-        'BackgroundColor', C.bg_panel, 'FontColor', C.red, ...
-        'Enable', 'off', ...
-        'ButtonPushedFcn', @(~,~) onDisconnect());
+% ══ Stage Jog (right column) ═══════════════════════════════════════════════
+jogPanel = uipanel(fig, 'Position', [384 12 224 310], ...
+        'BackgroundColor', C.bg_panel, 'BorderType', 'none');
 
-% ── Log area ──────────────────────────────────────────────────────────────
-uilabel(fig, 'Text', 'Log:', ...
-        'Position', [20 178 60 18], 'FontWeight', 'bold', 'FontSize', 10, ...
-        'FontColor', C.amber, 'BackgroundColor', C.bg_win);
-hLog = uitextarea(fig, ...
-        'Position', [20 20 300 155], ...
-        'Editable', 'off', ...
-        'FontSize', 9, ...
-        'BackgroundColor', C.toolbar, ...
-        'FontColor', C.muted, ...
-        'Value', {''});
-
-% ── Stage Jog (right column) ──────────────────────────────────────────────
-uilabel(fig, 'Text', 'Stage Jog', ...
-        'Position', [360 575 240 30], ...
-        'FontSize', 16, 'FontWeight', 'bold', ...
-        'FontColor', C.amber, ...
-        'BackgroundColor', C.bg_win, ...
+uilabel(jogPanel, 'Text', 'STAGE JOG', ...
+        'Position', [0 284 224 18], 'FontSize', 11, 'FontWeight', 'bold', ...
+        'FontColor', C.amber, 'BackgroundColor', C.bg_panel, ...
         'HorizontalAlignment', 'center');
 
-uilabel(fig, 'Text', 'Step (mm):', ...
-        'Position', [360 535 80 22], 'FontWeight', 'bold', ...
-        'FontColor', C.amber, 'BackgroundColor', C.bg_win);
-hStep = uieditfield(fig, 'numeric', ...
-        'Position', [445 535 80 22], ...
+uilabel(jogPanel, 'Text', 'Step (mm):', ...
+        'Position', [24 250 70 22], 'FontWeight', 'bold', ...
+        'FontColor', C.amber, 'BackgroundColor', C.bg_panel);
+hStep = uieditfield(jogPanel, 'numeric', ...
+        'Position', [100 250 96 24], ...
         'Value', 1, ...
         'Limits', [0 100], ...
         'LowerLimitInclusive', 'off', ...
@@ -219,51 +193,43 @@ hStep = uieditfield(fig, 'numeric', ...
         'BackgroundColor', C.bg_input, ...
         'FontColor', C.text);
 
-jogBtnSize = 50;
-jcx = 470; jcy = 380;
+hJogUp = uibutton(jogPanel, 'Text', char(9650), ...
+        'Position', [87 160 50 50], 'FontSize', 16, ...
+        'BackgroundColor', C.bg_input, 'FontColor', C.text, ...
+        'Enable', 'off', 'ButtonPushedFcn', @(~,~) onJog('X', -1));
 
-hJogUp = uibutton(fig, 'Text', char(9650), ...
-        'Position', [jcx-jogBtnSize/2, jcy+jogBtnSize, jogBtnSize, jogBtnSize], ...
-        'FontSize', 16, ...
-        'BackgroundColor', C.bg_panel, 'FontColor', C.text, ...
-        'Enable', 'off', ...
-        'ButtonPushedFcn', @(~,~) onJog('X', -1));
+hJogDown = uibutton(jogPanel, 'Text', char(9660), ...
+        'Position', [87 60 50 50], 'FontSize', 16, ...
+        'BackgroundColor', C.bg_input, 'FontColor', C.text, ...
+        'Enable', 'off', 'ButtonPushedFcn', @(~,~) onJog('X', +1));
 
-hJogDown = uibutton(fig, 'Text', char(9660), ...
-        'Position', [jcx-jogBtnSize/2, jcy-jogBtnSize, jogBtnSize, jogBtnSize], ...
-        'FontSize', 16, ...
-        'BackgroundColor', C.bg_panel, 'FontColor', C.text, ...
-        'Enable', 'off', ...
-        'ButtonPushedFcn', @(~,~) onJog('X', +1));
+hJogLeft = uibutton(jogPanel, 'Text', char(9664), ...
+        'Position', [37 110 50 50], 'FontSize', 16, ...
+        'BackgroundColor', C.bg_input, 'FontColor', C.text, ...
+        'Enable', 'off', 'ButtonPushedFcn', @(~,~) onJog('Y', -1));
 
-hJogLeft = uibutton(fig, 'Text', char(9664), ...
-        'Position', [jcx-jogBtnSize-jogBtnSize/2, jcy, jogBtnSize, jogBtnSize], ...
-        'FontSize', 16, ...
-        'BackgroundColor', C.bg_panel, 'FontColor', C.text, ...
-        'Enable', 'off', ...
-        'ButtonPushedFcn', @(~,~) onJog('Y', -1));
-
-hJogRight = uibutton(fig, 'Text', char(9654), ...
-        'Position', [jcx+jogBtnSize/2, jcy, jogBtnSize, jogBtnSize], ...
-        'FontSize', 16, ...
-        'BackgroundColor', C.bg_panel, 'FontColor', C.text, ...
-        'Enable', 'off', ...
-        'ButtonPushedFcn', @(~,~) onJog('Y', +1));
+hJogRight = uibutton(jogPanel, 'Text', char(9654), ...
+        'Position', [137 110 50 50], 'FontSize', 16, ...
+        'BackgroundColor', C.bg_input, 'FontColor', C.text, ...
+        'Enable', 'off', 'ButtonPushedFcn', @(~,~) onJog('Y', +1));
 
 jogButtons = [hJogUp hJogDown hJogLeft hJogRight];
 
-hJogStatus = uilabel(fig, 'Text', 'Jog disabled until stage is initialized (Launch VSX).', ...
-        'Position', [360 290 240 22], ...
-        'FontColor', C.muted, 'BackgroundColor', C.bg_win, ...
-        'HorizontalAlignment', 'center');
+hJogStatus = uilabel(jogPanel, ...
+        'Text', 'Jog disabled until stage is initialized (Launch VSX).', ...
+        'Position', [10 14 204 34], 'FontSize', 10, ...
+        'FontColor', C.muted, 'BackgroundColor', C.bg_panel, ...
+        'HorizontalAlignment', 'center', 'WordWrap', 'on');
 
 % ── State ─────────────────────────────────────────────────────────────────
 sweepsDone = 0;
+cleanedUp  = false;
 
-% Write session-start marker now that figure exists and hLog is ready.
-addLog('=== ScanControlPanel session started ===');
+addLog('=== ScanControlPanelSimple session started ===');
 if ~isempty(logPath)
-    addLog(['Log file: ' logPath]);
+    setStatus(['Ready — log: ' logPath], C.muted);
+else
+    setStatus('Ready.', C.muted);
 end
 
 % ── Callbacks ─────────────────────────────────────────────────────────────
@@ -289,17 +255,14 @@ end
             addLog(sprintf('Sweep %d / %d acquired.', sweepsDone, TOTAL_SWEEPS));
 
             if sweepsDone >= TOTAL_SWEEPS
-                setStatus('All sweeps acquired! Disconnect stage when finished.', C.green);
-                hRepos.Enable      = 'off';
-                hLaunch.Enable     = 'off';
-                hFinish.Enable     = 'on';
-                hDisconnect.Enable = 'on';
+                setStatus('All sweeps acquired. Stage disconnects when you close this window.', C.green);
+                hRepos.Enable  = 'off';
+                hLaunch.Enable = 'off';
+                hFinish.Enable = 'on';
             else
-                setStatus(sprintf('Sweep %d done. Reposition for next lane.', ...
-                          sweepsDone), C.green);
-                hRepos.Enable      = 'on';
-                hFinish.Enable     = 'on';
-                hDisconnect.Enable = 'on';
+                setStatus(sprintf('Sweep %d done. Reposition for next lane.', sweepsDone), C.green);
+                hRepos.Enable  = 'on';
+                hFinish.Enable = 'on';
             end
 
         catch ex
@@ -327,7 +290,6 @@ end
             hLaunch.Enable = 'on';
             hAuto.Enable   = 'on';
             hFinish.Enable = 'on';
-
         catch ex
             logError(['Reposition failed: ' ex.message]);
             setStatus(['Reposition failed: ' ex.message], C.red);
@@ -366,15 +328,10 @@ end
                 hProgress.Text = sprintf('%d / %d', sweepsDone, TOTAL_SWEEPS);
                 addLog(sprintf('Lane %d acquired.', sweepsDone));
 
-                try
-                    lastRF = evalin('base', 'lastRFfilename');
-                catch
-                    lastRF = '';
-                end
+                try; lastRF = evalin('base', 'lastRFfilename'); catch; lastRF = ''; end
                 if ~isempty(lastRF)
                     [fp, fn, ~] = fileparts(lastRF);
-                    setStatus(sprintf('Auto Scan: lane %d/%d — C-scan...', ...
-                              lane, TOTAL_SWEEPS), C.cyan);
+                    setStatus(sprintf('Auto Scan: lane %d/%d — C-scan...', lane, TOTAL_SWEEPS), C.cyan);
                     addLog(sprintf('C-scan: %s', fn));
                     drawnow;
                     try
@@ -391,8 +348,7 @@ end
                 if aborted; break; end
 
                 if sweepsDone < TOTAL_SWEEPS
-                    setStatus(sprintf('Auto Scan: lane %d/%d — repositioning...', ...
-                              lane, TOTAL_SWEEPS), C.cyan);
+                    setStatus(sprintf('Auto Scan: lane %d/%d — repositioning...', lane, TOTAL_SWEEPS), C.cyan);
                     addLog('Repositioning for next lane...');
                     drawnow;
                     try
@@ -420,7 +376,6 @@ end
         end
 
         if ~isvalid(fig); return; end
-
         hStop.Enable   = 'off';
         hAuto.Enable   = 'on';
         hFinish.Enable = 'on';
@@ -428,22 +383,18 @@ end
 
         if aborted
             logWarn(sprintf('Auto Scan stopped at lane %d/%d.', sweepsDone, TOTAL_SWEEPS));
-            setStatus(sprintf('Auto Scan stopped at lane %d/%d. ' + ...
-                      'Reposition or Launch manually to continue.', ...
+            setStatus(sprintf('Auto Scan stopped at lane %d/%d. Reposition or Launch manually to continue.', ...
                       sweepsDone, TOTAL_SWEEPS), C.amber);
             addLog('=== Auto Scan stopped by user ===');
             if sweepsDone < TOTAL_SWEEPS
                 hRepos.Enable  = 'on';
                 hLaunch.Enable = 'on';
-            else
-                hDisconnect.Enable = 'on';
             end
         elseif sweepsDone >= TOTAL_SWEEPS
-            setStatus('All sweeps acquired! Disconnect stage when finished.', C.green);
+            setStatus('All sweeps acquired. Stage disconnects when you close this window.', C.green);
             addLog('=== Auto Scan complete ===');
-            hRepos.Enable      = 'off';
-            hLaunch.Enable     = 'off';
-            hDisconnect.Enable = 'on';
+            hRepos.Enable  = 'off';
+            hLaunch.Enable = 'off';
         end
     end
 
@@ -457,7 +408,7 @@ end
         if sweepsDone >= TOTAL_SWEEPS
             sweepsDone     = 0;
             hProgress.Text = sprintf('0 / %d', TOTAL_SWEEPS);
-            hPos.Text      = 'x=-.--- y=-.--- z=-.--- mm';
+            hPos.Text      = 'x=-.---  y=-.---  z=-.---';
             hRepos.Enable  = 'off';
         end
         hFinish.Enable = 'off';
@@ -467,22 +418,9 @@ end
         setStatus('Ready. Press Launch VSX or Auto Scan to continue.', C.muted);
     end
 
-    function onDisconnect()
-        try
-            stage = evalin('base', 'stage');
-            stage.disconnect();
-            addLog('Stage disconnected.');
-            setStatus('Stage disconnected.', C.muted);
-        catch
-        end
-        hDisconnect.Enable = 'off';
-        hRepos.Enable      = 'off';
-    end
-
     function onJog(axisName, sign)
         try
-            busy = evalin('base', ...
-                'exist(''sweepInProgress'',''var'') && sweepInProgress');
+            busy = evalin('base', 'exist(''sweepInProgress'',''var'') && sweepInProgress');
         catch
             busy = false;
         end
@@ -504,7 +442,6 @@ end
         end
 
         distance = sign * step;
-
         [jogButtons.Enable] = deal('off');
         setJogStatus(sprintf('Moving %s by %.3f mm...', axisName, distance), C.amber);
         logToFile('INFO', sprintf('Jog %s by %.3f mm', axisName, distance));
@@ -513,10 +450,8 @@ end
         try
             stage = getOrConnectStage();
             switch axisName
-                case 'X'
-                    stage.moveX(distance, 'vel', 40, 'accel', 100, 'decel', 100);
-                case 'Y'
-                    stage.moveY(distance, 'vel', 40, 'accel', 100, 'decel', 100);
+                case 'X'; stage.moveX(distance, 'vel', 40, 'accel', 100, 'decel', 100);
+                case 'Y'; stage.moveY(distance, 'vel', 40, 'accel', 100, 'decel', 100);
             end
             assignin('base', 'stage', stage);
             updatePosition();
@@ -538,7 +473,6 @@ end
         else
             addLog('Running SetUp script...');
         end
-
         snakeMode = startsWith(hScanMode.Value, 'Snake');
         assignin('base', 'guiLog',           @addLog);
         assignin('base', 'sweepLateralY_mm', sweepsDone * Y_STEPS * 0.1);
@@ -550,9 +484,7 @@ end
             sweepDir = 1;
         end
         assignin('base', 'sweepDir', sweepDir);
-
-        script = setup_script;
-        evalin('base', sprintf("run('%s')", strrep(script, '\', '/')));
+        evalin('base', sprintf("run('%s')", strrep(setup_script, '\', '/')));
         addLog('SetUp script returned.');
         assignin('base', 'sweepInProgress', false);
     end
@@ -589,11 +521,10 @@ end
     % ── GUI helpers ────────────────────────────────────────────────────────
 
     function lockAll()
-        hLaunch.Enable     = 'off';
-        hRepos.Enable      = 'off';
-        hFinish.Enable     = 'off';
-        hDisconnect.Enable = 'off';
-        hAuto.Enable       = 'off';
+        hLaunch.Enable = 'off';
+        hRepos.Enable  = 'off';
+        hFinish.Enable = 'off';
+        hAuto.Enable   = 'off';
     end
 
     function setJogStatus(msg, color)
@@ -603,7 +534,7 @@ end
     end
 
     function setStatus(msg, color)
-        hStatus.Text      = msg;
+        hStatus.Text      = ['●  ' msg];
         hStatus.FontColor = color;
         logToFile(statusLevel(color), ['status: ' msg]);
     end
@@ -619,8 +550,7 @@ end
         try
             stage = evalin('base', 'stage');
             pos   = stage.getPosition();
-            hPos.Text = sprintf('x=%.3f  y=%.3f  z=%.3f mm', ...
-                                pos.x, pos.y, pos.z);
+            hPos.Text = sprintf('x=%.3f  y=%.3f  z=%.3f', pos.x, pos.y, pos.z);
         catch
             hPos.Text = 'position unavailable';
         end
@@ -629,7 +559,6 @@ end
     % ── Logging helpers ────────────────────────────────────────────────────
 
     function addLog(msg, level)
-        % Route every GUI log line to the file as INFO (default) or given level.
         if nargin < 2 || isempty(level); level = 'INFO'; end
         timestamp = datestr(now, 'HH:MM:SS');
         if strcmp(level, 'INFO')
@@ -639,29 +568,17 @@ end
         end
         fprintf('%s\n', line);
         logToFile(level, msg);
-
-        current = hLog.Value;
-        if isempty(current) || (numel(current)==1 && isempty(current{1}))
-            hLog.Value = {line};
-        else
-            hLog.Value = [current; {line}];
-        end
-
+        % Control flow: enables jog D-pad once VSX reports stage is connected
         if contains(msg, 'Calling VSX')
             [jogButtons.Enable] = deal('on');
             setJogStatus('Jog ready.', C.green);
         end
-        scroll(hLog, 'bottom');
-        drawnow;
     end
 
     function logWarn(msg),  addLog(msg, 'WARN');  end
     function logError(msg), addLog(msg, 'ERROR'); end
 
     function logToFile(level, msg)
-        % Core file-write: open → append → close on every call.
-        % Closing after each write is the only pure-MATLAB way to guarantee
-        % entries survive a MATLAB crash (no fflush in base MATLAB).
         if isempty(logPath); return; end
         try
             fid = fopen(logPath, 'at', 'n', 'UTF-8');
@@ -672,10 +589,19 @@ end
         end
     end
 
-    function closeLog()
-        logToFile('INFO', '=== ScanControlPanel session ended ===');
+    function cleanupPanel()
+        if cleanedUp; return; end
+        cleanedUp = true;
+        try
+            s = evalin('base', 'stage');
+            s.disconnect();
+            logToFile('INFO', 'Stage disconnected on panel close.');
+        catch; end
+        try; evalin('base', 'clear stage'); catch; end
+        logToFile('INFO', '=== ScanControlPanelSimple session ended ===');
         try; evalin('base', 'clear scanLogFcn'); catch; end
-        logPath = '';   % neutralise any stale callbacks after figure is gone
+        logPath = '';
+        try; delete(fig); catch; end
     end
 
 end
