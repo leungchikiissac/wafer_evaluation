@@ -89,7 +89,7 @@ if exist(WORKSPACE_FILE, 'file')
     frame_length = ws.Receive.endSample;
     pitch_mm     = ws.Trans.spacingMm;
     if isfield(ws.Receive, 'decimSampleRate')
-        fs = ws.Receive.decimSampleRate * 1e6;   % Hz
+        fs = ws.Receive(1).decimSampleRate * 1e6;   % Hz
     else
         fs = 117.65e6;
     end
