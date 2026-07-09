@@ -254,9 +254,12 @@ fprintf('\n── Stacking %d lanes ──────────────�
 
 for vi = 1:numel(VARIABLES)
     vn = VARIABLES{vi};
-    stacked_g.(vn) = cat(2, cellfun(@(s) s.(vn), slabs_g, 'UniformOutput', false){:});
-    stacked_a.(vn) = cat(2, cellfun(@(s) s.(vn), slabs_a, 'UniformOutput', false){:});
-    stacked_c.(vn) = cat(2, cellfun(@(s) s.(vn), slabs_c, 'UniformOutput', false){:});
+    pg = cellfun(@(s) s.(vn), slabs_g, 'UniformOutput', false);
+    pa = cellfun(@(s) s.(vn), slabs_a, 'UniformOutput', false);
+    pc = cellfun(@(s) s.(vn), slabs_c, 'UniformOutput', false);
+    stacked_g.(vn) = cat(2, pg{:});
+    stacked_a.(vn) = cat(2, pa{:});
+    stacked_c.(vn) = cat(2, pc{:});
     % Each is [N_EI × K*n_lat_trim × N_DEPTHS]
 end
 
