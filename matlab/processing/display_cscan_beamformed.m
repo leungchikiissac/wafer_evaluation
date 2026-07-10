@@ -77,8 +77,8 @@ CLIM_MODE   = 'percentile';
 CLIM_PRC    = [1 99.5];
 CLIM_MANUAL = [];
 CMAP        = 'gray';
-SAVE_FIG    = false;
-SAVE_PATH   = fullfile(BF_DIR, 'cscan_bf_display.png');
+SAVE_FIG    = true;
+SAVE_DIR    = fullfile(BF_DIR, 'figures');   % created automatically if absent
 
 USE_CACHE = true;
 
@@ -510,13 +510,21 @@ fprintf('Stacked: %d × %d × %d depths  (%d lanes | %d vars | gate: %s)\n', ...
     N_DEPTHS, K, N_VARS, GATE_MAIN);
 
 if SAVE_FIG
-    exportgraphics(fig_main, SAVE_PATH, 'Resolution', 200);
-    [sd, sn, se] = fileparts(SAVE_PATH);
-    exportgraphics(fig_cmp,  fullfile(sd, [sn '_compare' se]),  'Resolution', 200);
+    if ~exist(SAVE_DIR, 'dir'), mkdir(SAVE_DIR); end
+    gate_tag = regexprep(GATE_MAIN, '_', '');       % 'peracq' | 'global' | 'percol'
+    reg_tag  = char('R' * USE_SURFACE_REGRESSION + 'r' * ~USE_SURFACE_REGRESSION);  % 'R'=regression, 'r'=raw
+    stamp    = char(datetime('now', 'Format', 'yyyyMMdd_HHmm'));
+    base     = sprintf('xi%d-%d_%s_%s_%s', kept_xi(1), kept_xi(end), gate_tag, reg_tag, stamp);
+
+    save_png = @(fig, tag) exportgraphics(fig, fullfile(SAVE_DIR, [base '_' tag '.png']), 'Resolution', 200);
+
+    save_png(fig_main, 'cscan');
+    save_png(fig_cmp,  'compare');
+    save_png(fig_surf, 'surface');
     if SHOW_RAW && exist('fig_raw', 'var')
-        exportgraphics(fig_raw, fullfile(sd, [sn '_raw' se]), 'Resolution', 200);
+        save_png(fig_raw, 'raw');
     end
-    fprintf('Figures saved to %s\n', sd);
+    fprintf('Figures saved to %s\n  prefix: %s\n', SAVE_DIR, base);
 end
 
 %% ════════════════════════════════════════════════════════════════════════════
