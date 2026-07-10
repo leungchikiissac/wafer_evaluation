@@ -126,8 +126,7 @@ slabs_c   = {};
 raw_slabs = {};
 
 surf_vs_step = {};
-surf_vs_lat  = {};
-lat_x_mm     = {};
+surf_vs_lat  = {};  % one [n_lat_trim × 1] per lane; stitch with x_bf_mm after loop
 
 for k = 1:numel(XI_LIST)
     xi   = XI_LIST(k);
@@ -187,9 +186,8 @@ for k = 1:numel(XI_LIST)
     surf_col_full = interp1(elem_x', double(surf_bf), (1:N_LAT_BF)');  % [N_LAT_BF × N_EI]
     surf_col      = round(surf_col_full(lat_cols, :));                 % [n_lat_trim × N_EI]
 
-    surf_vs_step{k} = mean(double(surf_bf), 1);           % [1 × N_EI]
-    surf_vs_lat{k}  = mean(double(surf_col_full), 2);      % [N_LAT_BF × 1]
-    lat_x_mm{k}     = xloc(xi) + (0:N_LAT_BF-1) * col_pitch_mm;
+    surf_vs_step{k} = mean(double(surf_bf), 1);   % [1 × N_EI]
+    surf_vs_lat{k}  = mean(double(surf_col), 2);  % [n_lat_trim × 1] — trimmed cols only, matches x_bf_mm
 
     fprintf('  Surface: global=%d | per-acq %d–%d | per-col %d–%d\n', ...
         surf_global(1), min(surf_acq), max(surf_acq), min(surf_col(:)), max(surf_col(:)));
@@ -374,12 +372,12 @@ grid on;
 set(gca, 'YDir', 'normal');
 
 % Right: mean surface depth vs lateral (X direction, stitched across lanes)
+% Uses x_bf_mm — same X axis as the C-scan — so trimmed columns tile without overlap.
 nexttile;
-lat_x_all = cat(2, lat_x_mm{:});
 tmp = cellfun(@(v) v(:)', surf_vs_lat, 'UniformOutput', false);
-surf_lat_all = cat(2, tmp{:});          % [1 × K*N_LAT_BF], lane-major — matches lat_x_all
+surf_lat_all = cat(2, tmp{:});   % [1 × K*n_lat_trim], matches x_bf_mm
 surf_lat_mm  = surf_lat_all(:) / fs * (C_SOUND * 1e3) / 2;
-plot(lat_x_all(:), surf_lat_mm);
+plot(x_bf_mm, surf_lat_mm);
 xlabel('Lateral position (mm)');
 ylabel('Surface depth (mm)');
 title('Surface depth vs lateral  (mean over steps, stitched)');
