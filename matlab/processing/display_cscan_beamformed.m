@@ -125,6 +125,10 @@ slabs_a   = {};
 slabs_c   = {};
 raw_slabs = {};
 
+surf_vs_step = {};
+surf_vs_lat  = {};
+lat_x_mm     = {};
+
 for k = 1:numel(XI_LIST)
     xi   = XI_LIST(k);
     xstr = num2str(xloc(xi));
@@ -182,6 +186,10 @@ for k = 1:numel(XI_LIST)
     elem_x        = linspace(1, N_LAT_BF, n_elem);
     surf_col_full = interp1(elem_x', double(surf_bf), (1:N_LAT_BF)');  % [N_LAT_BF × N_EI]
     surf_col      = round(surf_col_full(lat_cols, :));                 % [n_lat_trim × N_EI]
+
+    surf_vs_step{k} = mean(double(surf_bf), 1);           % [1 × N_EI]
+    surf_vs_lat{k}  = mean(double(surf_col_full), 2);      % [N_LAT_BF × 1]
+    lat_x_mm{k}     = xloc(xi) + (0:N_LAT_BF-1) * col_pitch_mm;
 
     fprintf('  Surface: global=%d | per-acq %d–%d | per-col %d–%d\n', ...
         surf_global(1), min(surf_acq), max(surf_acq), min(surf_col(:)), max(surf_col(:)));
@@ -342,6 +350,46 @@ if SHOW_RAW && ~isempty(raw_cscan_stacked)
     draw_tile(raw_cscan_stacked, x_raw_mm, 'Raw RF C-scan', cfg);
     title(gca, sprintf('Raw RF C-scan  |  xi=%d:%d', kept_xi(1), kept_xi(end)));
 end
+
+%% ── Figure 4: surface profile ─────────────────────────────────────────────
+
+fig_surf = figure('Name', 'Surface profile', ...
+                  'Units', 'normalized', 'Position', [0.05 0.15 0.9 0.45]);
+tiledlayout(1, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+
+% Left: mean surface depth vs step (Y direction)
+nexttile;
+hold on;
+for k = 1:numel(kept_xi)
+    xi   = kept_xi(k);
+    s_mm = surf_vs_step{k} / fs * (C_SOUND * 1e3) / 2;
+    plot(y_mm, s_mm, 'DisplayName', sprintf('xi=%d (x=%.1f mm)', xi, xloc(xi)));
+end
+hold off;
+xlabel('Step position (mm)');
+ylabel('Surface depth (mm)');
+title('Surface depth vs step  (mean over elements)');
+legend('Location', 'best');
+grid on;
+set(gca, 'YDir', 'normal');
+
+% Right: mean surface depth vs lateral (X direction, stitched across lanes)
+nexttile;
+lat_x_all = cat(2, lat_x_mm{:});
+tmp = cellfun(@(v) v(:)', surf_vs_lat, 'UniformOutput', false);
+surf_lat_all = cat(2, tmp{:});          % [1 × K*N_LAT_BF], lane-major — matches lat_x_all
+surf_lat_mm  = surf_lat_all(:) / fs * (C_SOUND * 1e3) / 2;
+plot(lat_x_all(:), surf_lat_mm);
+xlabel('Lateral position (mm)');
+ylabel('Surface depth (mm)');
+title('Surface depth vs lateral  (mean over steps, stitched)');
+grid on;
+set(gca, 'YDir', 'normal');
+for lb = lane_x_mm
+    xline(lb, '--', 'Color', [0.9 0.4 0.1], 'LineWidth', 0.8, 'Alpha', 0.7);
+end
+sgtitle(sprintf('Surface profile  |  xi=%d:%d  |  fs=%.2f MHz  |  c=%d m/s', ...
+    kept_xi(1), kept_xi(end), fs/1e6, C_SOUND), 'FontWeight', 'bold');
 
 %% ── Report ────────────────────────────────────────────────────────────────
 
