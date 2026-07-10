@@ -516,7 +516,7 @@ if SAVE_FIG
     stamp    = char(datetime('now', 'Format', 'yyyyMMdd_HHmm'));
     base     = sprintf('xi%d-%d_%s_%s_%s', kept_xi(1), kept_xi(end), gate_tag, reg_tag, stamp);
 
-    save_png = @(fig, tag) exportgraphics(fig, fullfile(SAVE_DIR, [base '_' tag '.png']), 'Resolution', 200);
+    save_png = @(fig, tag) print(fig, fullfile(SAVE_DIR, [base '_' tag]), '-dpng', '-r200');
 
     save_png(fig_main, 'cscan');
     save_png(fig_cmp,  'compare');
