@@ -60,7 +60,7 @@ COMPARE_VAR = 'ps_data_ds';  % variable shown in Figure 1 (3-way comparison)
 
 % Surface detection opts passed to cscan_surface_guided_fn
 SURF_OPTS              = struct();
-SURF_OPTS.search_range = [];
+SURF_OPTS.search_range = [892, 1000];  % samples; surface at ~5.8–6.1 mm ≈ 922–970 smp, ±30 smp margin
 SURF_OPTS.threshold    = 500;
 SURF_OPTS.buff_depth   = 16;
 SURF_OPTS.ax_len       = 1;
