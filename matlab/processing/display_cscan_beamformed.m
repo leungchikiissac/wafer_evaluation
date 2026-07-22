@@ -20,6 +20,25 @@
 % Surface gating optionally uses a global plane regressed across all lanes
 % (USE_SURFACE_REGRESSION); Pass A detects surfaces, the plane is fit, then
 % Pass B gates on either the fitted plane or the raw detected surface.
+%
+% ── What is gating? ────────────────────────────────────────────────────────
+% Gating selects a thin depth window just below the detected surface, rather
+% than integrating the full A-scan.  The C-scan pixel = sum/max/mean of the
+% Hilbert envelope within:
+%
+%   gate start = surface_sample + buff_depth   (skip the surface echo)
+%   gate end   = gate start + ax_len           (thin slice, default 1 sample)
+%
+% Three surface-reference strategies (Figure 1 comparison):
+%   Global mean  (stacked_g) — one fixed depth for the whole scan.
+%                              Fast; degrades if the wafer is tilted.
+%   Per-acq mean (stacked_a) — one depth per sweep step (mean over elements).
+%                              Tracks tilt along the sweep direction.
+%   Per-column   (stacked_c) — one depth per (column × step) cell.
+%                              Fully adaptive; best for warped surfaces.
+%
+% With USE_SURFACE_REGRESSION=true all three use the plane-fitted surface,
+% removing noise in the raw surface detection.
 
 clearvars
 
