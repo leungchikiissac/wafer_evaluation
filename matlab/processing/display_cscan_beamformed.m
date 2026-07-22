@@ -58,16 +58,28 @@ DEPTH_BF     = 2048;
 N_LAT_BF     = 256;
 N_EI         = 1200;
 
-% ── Depth specification ────────────────────────────────────────────────────
-% Depths below the detected surface to gate, in mm.
-GATE_DEPTHS_MM = [0.0, 0.05, 0.1];
+% Speed of sound
+C_SOUND      = 1480;   % m/s  water at ~22 °C — used by beamformer and depth conversion
+C_SILICON    = 8430;   % m/s  longitudinal speed in silicon
+WAFER_THK_MM = 1.0;    % mm   physical wafer thickness
 
-% Gate window thickness in mm (integration depth per gate).
-AX_LEN_MM = 0.05;
+% ── Gate depth specification ───────────────────────────────────────────────
+% GATE_DEPTHS_MM: depths below the detected surface in *apparent* mm.
+% The BF data uses C_SOUND (water) throughout, so depths inside the wafer
+% must be converted from physical silicon depth:
+%
+%   apparent_mm = physical_mm_in_silicon × (C_SOUND / C_SILICON)
+%
+% For a 1 mm silicon wafer the apparent half-thickness ≈ 0.088 mm.
+% Three gates bracket the wafer centre (above / centre / below):
+wafer_half_apparent = (WAFER_THK_MM / 2) * (C_SOUND / C_SILICON);
+GATE_DEPTHS_MM = [wafer_half_apparent - 0.028, ...   % ~¼ depth above centre
+                  wafer_half_apparent,           ...  % wafer centre
+                  wafer_half_apparent + 0.028];       % ~¼ depth below centre
 
-% Speed of sound in scan medium (m/s).
-% Water at ~22 °C: 1480 m/s.  Change if scanning through another medium.
-C_SOUND = 1480;
+% Gate window thickness: thin gate for sharp axial resolution.
+% 0.02 mm apparent ≈ 3 samples ≈ 0.11 mm physical depth in silicon.
+AX_LEN_MM = 0.02;
 
 % ── Variables ──────────────────────────────────────────────────────────────
 % Names in the beamformed .mat files, or 'nsi' (computed from dcl/dcr/zml).
