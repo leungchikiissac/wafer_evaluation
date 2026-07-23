@@ -15,4 +15,25 @@ opts.buff_depth   = 16;
 opts.ax_len       = 1;
 opts.lat_range    = [];
 
-cscan_surface_guided_fn(file_path, mat_file, txt_file, opts);
+[cscan, surface_map] = cscan_surface_guided_fn(file_path, mat_file, txt_file, opts);
+
+%% ── Display ───────────────────────────────────────────────────────────────
+figure('Name', 'C-scan (surface-guided)', 'NumberTitle', 'off');
+
+subplot(1, 2, 1);
+imagesc(cscan);
+axis image;
+colormap('gray');
+colorbar;
+title('C-scan envelope amplitude');
+xlabel('Element (lateral)');
+ylabel('Acquisition (step)');
+
+subplot(1, 2, 2);
+imagesc(mean(surface_map, 1));
+axis image;
+colormap('jet');
+colorbar;
+title('Detected surface depth (samples)');
+xlabel('Acquisition (step)');
+ylabel('Element (lateral)');

@@ -83,6 +83,37 @@ AX_LEN_MM = 0.02;
 
 % ── Variables ──────────────────────────────────────────────────────────────
 % Names in the beamformed .mat files, or 'nsi' (computed from dcl/dcr/zml).
+%
+%   ps_data_ds  Plane-wave Sum (delay-and-sum).  The baseline B-scan: each
+%               steering angle is time-shifted and summed coherently across
+%               elements.  Highest raw amplitude but most susceptible to
+%               grating lobes and incoherent noise.  '_ds' = downsampled.
+%
+%   gcf_ds      Generalized Coherence Factor.  Measures what fraction of the
+%               element-domain energy is concentrated near DC (the coherent
+%               peak).  Acts as a pixel-wise weight: values near 1 = coherent
+%               target (real feature), near 0 = incoherent noise or grating
+%               lobe.  Applied as: image = ps_data_ds .* gcf.
+%
+%   fgcf_ds     F-number weighted GCF.  Same as GCF but an additional
+%               F-number spatial taper is applied before the coherence
+%               measurement, which suppresses off-axis grating lobes more
+%               aggressively than plain GCF at the cost of some lateral
+%               resolution.
+%
+%   cf_ds       Coherence Factor (simple).  |Σ elements|² / (N · Σ|elements|²).
+%               Ranges 0–1.  Simpler predecessor to GCF; computationally
+%               cheaper but less effective at preserving resolution near
+%               strong targets.
+%
+%   nsi         Non-Specular Intensity.  Computed here (not stored in .mat):
+%                 nsi = |0.5·(env(dcl) + env(dcr)) − env(zml)|
+%               dcl/dcr = left/right half-aperture DAS images.
+%               zml     = zero-mean (full-aperture) DAS image.
+%               The subtraction cancels the dominant specular surface echo
+%               (which looks the same from all aperture halves) and amplifies
+%               scattered echoes from defects, inclusions, or cracks that
+%               scatter differently to each half of the array.
 VARIABLES = {'ps_data_ds', 'fgcf_ds', 'gcf_ds', 'cf_ds', 'nsi'};
 
 % Gating comparison / main-figure selection
