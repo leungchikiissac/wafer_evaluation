@@ -20,20 +20,22 @@ opts.lat_range    = [];
 %% ── Display ───────────────────────────────────────────────────────────────
 figure('Name', 'C-scan (surface-guided)', 'NumberTitle', 'off');
 
-subplot(1, 2, 1);
+ax1 = subplot(1, 2, 1);
 imagesc(cscan);
 axis image;
-colormap('gray');
+colormap(ax1, 'gray');
 colorbar;
 title('C-scan envelope amplitude');
 xlabel('Element (lateral)');
 ylabel('Acquisition (step)');
 
-subplot(1, 2, 2);
-imagesc(mean(surface_map, 1));
+% surface_map is [n_elem x n_acq]; transpose so rows=acquisitions,
+% cols=elements to match the C-scan layout on the left.
+ax2 = subplot(1, 2, 2);
+imagesc(surface_map');
 axis image;
-colormap('jet');
+colormap(ax2, 'jet');
 colorbar;
 title('Detected surface depth (samples)');
-xlabel('Acquisition (step)');
-ylabel('Element (lateral)');
+xlabel('Element (lateral)');
+ylabel('Acquisition (step)');
